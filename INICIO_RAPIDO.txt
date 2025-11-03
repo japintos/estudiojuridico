@@ -1,0 +1,136 @@
+================================================================================
+SISTEMA DE GESTIÓN ESTUDIO JURÍDICO MULTIFUERO
+Desarrollado por: WebXpert (Julio A. Pintos)
+================================================================================
+
+INICIO RÁPIDO - 3 PASOS SIMPLES
+================================================================================
+
+PASO 1: BASE DE DATOS
+--------------------------------------------------------------------------------
+mysql -u root -p < database/schema.sql
+
+El script crea automáticamente la base de datos si no existe.
+
+
+PASO 2: BACKEND
+--------------------------------------------------------------------------------
+cd backend
+npm install
+copy .env.example .env
+# Editar .env con tus credenciales MySQL
+npm run dev
+
+
+PASO 3: FRONTEND
+--------------------------------------------------------------------------------
+cd frontend
+npm install
+npm run dev
+
+
+ACCEDER
+--------------------------------------------------------------------------------
+http://localhost:3000
+
+Usuario: admin@estudiojuridico.com
+Password: admin
+
+
+================================================================================
+CREDENCIALES DEL SISTEMA
+================================================================================
+
+Usuario Administrador:
+  Email:    admin@estudiojuridico.com
+  Password: admin
+
+Usuario Ejemplo:
+  Email:    julio@webxpert.com.ar
+  Password: admin
+
+⚠️ IMPORTANTE: Cambiar las contraseñas en producción
+
+
+================================================================================
+ESTRUCTURA DEL PROYECTO
+================================================================================
+
+backend/          - Servidor Node.js + Express
+  ├─ config/      - Base de datos y uploads
+  ├─ controllers/ - 7 controladores
+  ├─ middleware/  - Auth y errores
+  ├─ routes/      - 7 rutas API
+  └─ server.js    - Punto de entrada
+
+database/         - Base de datos
+  └─ schema.sql   - Esquema completo SQL
+
+frontend/         - Cliente React + TypeScript
+  └─ src/
+     ├─ components/ - Componentes UI
+     ├─ pages/      - 10 páginas
+     ├─ services/   - API client
+     └─ store/      - Estado global
+
+
+================================================================================
+FUNCIONALIDADES PRINCIPALES
+================================================================================
+
+✓ Gestión de Expedientes
+✓ Gestión de Clientes
+✓ Audiencias Judiciales
+✓ Documentos PDF
+✓ Plantillas y Escritos
+✓ Agenda y Recordatorios
+✓ Dashboard con Estadísticas
+✓ Control de Roles y Permisos
+
+
+================================================================================
+TECNOLOGÍAS UTILIZADAS
+================================================================================
+
+Backend:
+  - Node.js 18+
+  - Express 4.18
+  - MySQL/MariaDB
+  - JWT (autenticación)
+  - Multer (uploads)
+  - Bcrypt (hash)
+
+Frontend:
+  - React 18
+  - TypeScript
+  - Vite
+  - Tailwind CSS
+  - Zustand
+  - React Router
+  - Axios
+
+
+================================================================================
+DOCUMENTACIÓN COMPLETA
+================================================================================
+
+README.md              - Documentación principal
+INSTALLATION.md        - Guía de instalación detallada
+PROJECT_SUMMARY.md     - Resumen completo del proyecto
+
+
+================================================================================
+SOPORTE
+================================================================================
+
+Desarrollador: Julio A. Pintos
+Empresa: WebXpert
+Website: www.webxpert.com.ar
+Email: info@webxpert.com.ar
+
+
+================================================================================
+PROYECTO COMPLETO Y LISTO PARA PRODUCCIÓN
+Versión 1.0.0
+================================================================================
+
