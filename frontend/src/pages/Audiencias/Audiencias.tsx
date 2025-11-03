@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Calendar, Plus } from 'lucide-react'
 import api from '../../services/api'
 import { toast } from 'react-toastify'
@@ -16,6 +17,7 @@ interface Audiencia {
 export default function Audiencias() {
   const [audiencias, setAudiencias] = useState<Audiencia[]>([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchAudiencias()
@@ -56,7 +58,10 @@ export default function Audiencias() {
           <h1 className="text-3xl font-bold text-gray-900">Audiencias</h1>
           <p className="text-gray-600 mt-1">Próximas audiencias judiciales</p>
         </div>
-        <button className="btn-primary">
+        <button 
+          onClick={() => toast.info('Funcionalidad en desarrollo - próximo lanzamiento')}
+          className="btn-primary"
+        >
           <Plus className="w-5 h-5 mr-2" />
           Nueva Audiencia
         </button>

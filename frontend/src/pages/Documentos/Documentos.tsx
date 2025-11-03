@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FileText, Upload } from 'lucide-react'
 import api from '../../services/api'
 import { toast } from 'react-toastify'
@@ -15,6 +16,7 @@ interface Documento {
 export default function Documentos() {
   const [documentos, setDocumentos] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchDocumentos()
@@ -38,7 +40,10 @@ export default function Documentos() {
           <h1 className="text-3xl font-bold text-gray-900">Documentos</h1>
           <p className="text-gray-600 mt-1">Gestión de documentos PDF</p>
         </div>
-        <button className="btn-primary">
+        <button 
+          onClick={() => toast.info('Funcionalidad en desarrollo - próximo lanzamiento')}
+          className="btn-primary"
+        >
           <Upload className="w-5 h-5 mr-2" />
           Subir Documento
         </button>
