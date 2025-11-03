@@ -15,6 +15,7 @@ const audienciasRoutes = require('./routes/audiencias');
 const documentosRoutes = require('./routes/documentos');
 const plantillasRoutes = require('./routes/plantillas');
 const agendaRoutes = require('./routes/agenda');
+const usuariosRoutes = require('./routes/usuarios');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,6 +48,7 @@ app.use('/api/audiencias', audienciasRoutes);
 app.use('/api/documentos', documentosRoutes);
 app.use('/api/plantillas', plantillasRoutes);
 app.use('/api/agenda', agendaRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 
 // Manejo de errores
 app.use(errorHandler);
