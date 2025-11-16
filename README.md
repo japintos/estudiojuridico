@@ -12,6 +12,7 @@ Sistema web completo de gestión integral para estudios jurídicos desarrollado 
 - ✅ **Plantillas de Escritos**: Generación automática de escritos judiciales
 - ✅ **Agenda**: Sistema de tareas, recordatorios y alertas
 - ✅ **Dashboard**: Estadísticas y métricas en tiempo real
+- ✅ **Reportes por Correo**: Generación y envío automático de reportes en PDF por correo electrónico
 - ✅ **Autenticación JWT**: Sistema seguro de usuarios y roles
 - ✅ **Control de Permisos**: 4 roles (Abogado, Secretaria, Gestor, Pasante)
 
@@ -22,6 +23,8 @@ Sistema web completo de gestión integral para estudios jurídicos desarrollado 
 - MySQL/MariaDB
 - JWT para autenticación
 - Multer para uploads
+- Nodemailer para envío de correos
+- PDFKit para generación de PDFs
 - Validaciones robustas
 
 **Frontend:**
@@ -71,6 +74,13 @@ JWT_EXPIRATION=8h
 ALLOWED_ORIGINS=http://localhost:3000
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=10485760
+
+# Configuración SMTP para envío de correos (opcional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu_email@gmail.com
+SMTP_PASSWORD=tu_app_password
 ```
 
 ### Paso 3: Configurar y Ejecutar
@@ -194,6 +204,16 @@ El esquema incluye las siguientes tablas:
 - `PUT /api/agenda/:id` - Actualizar evento
 - `DELETE /api/agenda/:id` - Eliminar evento
 
+### Reportes
+- `GET /api/reportes/expedientes` - Reporte de expedientes (con filtros: fecha_desde, fecha_hasta, fuero, estado)
+- `GET /api/reportes/vencimientos` - Reporte de vencimientos (con filtros: fecha_desde, fecha_hasta, urgente, completada)
+- `GET /api/reportes/audiencias` - Reporte de audiencias (con filtros: fecha_desde, fecha_hasta, realizada, tipo)
+- `GET /api/reportes/general` - Reporte general del dashboard
+- `POST /api/reportes/enviar` - Enviar reporte por correo electrónico
+  - **Body:** `{ tipo: 'expedientes'|'vencimientos', email: string, fecha_desde?: string, fecha_hasta?: string, ...filtros }`
+  - **Respuesta:** `{ message: 'Reporte enviado por correo exitosamente' }`
+  - **Permisos:** Solo Abogado y Secretaria
+
 ## 🎨 Diseño
 
 El diseño sigue un enfoque institucional, sobrio y profesional:
@@ -213,6 +233,74 @@ El diseño sigue un enfoque institucional, sobrio y profesional:
 - Helmet para headers de seguridad
 - Logs de auditoría
 
+## 📧 Reportes por Correo
+
+El sistema incluye funcionalidad completa para generar y enviar reportes por correo electrónico:
+
+### Características
+- **Generación automática de PDFs**: Los reportes se generan en formato PDF profesional
+- **Envío por correo**: Los reportes se envían automáticamente con el PDF adjunto
+- **Filtros personalizables**: Puedes aplicar filtros de fecha, fuero, estado, etc.
+- **Tipos de reportes**: Expedientes, Vencimientos, Audiencias, Reporte General
+
+### Configuración SMTP
+
+Para habilitar el envío de correos, configura las variables de entorno SMTP en el archivo `.env`:
+
+**Gmail (recomendado para desarrollo):**
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu_email@gmail.com
+SMTP_PASSWORD=tu_app_password  # Usar App Password de Google
+```
+
+**Otros proveedores:**
+- Outlook: `smtp-mail.outlook.com`, puerto 587
+- SendGrid: `smtp.sendgrid.net`, puerto 587
+- Cualquier servidor SMTP estándar
+
+**Nota:** Si no se configuran las credenciales SMTP, el sistema funcionará en modo desarrollo y solo mostrará logs en consola sin enviar correos reales.
+
+### Uso de la API
+
+**Enviar reporte de expedientes:**
+```bash
+POST /api/reportes/enviar
+{
+  "tipo": "expedientes",
+  "email": "destinatario@ejemplo.com",
+  "fecha_desde": "2024-01-01",
+  "fecha_hasta": "2024-12-31",
+  "fuero": "laboral",
+  "estado": "activo"
+}
+```
+
+**Enviar reporte de vencimientos:**
+```bash
+POST /api/reportes/enviar
+{
+  "tipo": "vencimientos",
+  "email": "destinatario@ejemplo.com",
+  "fecha_desde": "2024-01-01",
+  "fecha_hasta": "2024-12-31",
+  "urgente": true
+}
+```
+
+### Contenido del Correo
+
+Cada correo incluye:
+- **Asunto**: Tipo de reporte y período
+- **Cuerpo HTML**: Resumen con información del reporte
+- **PDF Adjunto**: Reporte completo con todos los detalles y estadísticas
+
+### Permisos
+
+Solo usuarios con rol de **Abogado** o **Secretaria** pueden enviar reportes por correo.
+
 ## 📝 Notas de Desarrollo
 
 - El hash de contraseña por defecto debe cambiarse en producción
@@ -220,6 +308,7 @@ El diseño sigue un enfoque institucional, sobrio y profesional:
 - Se recomienda usar un servidor de archivos en producción
 - Configurar HTTPS en producción
 - Implementar backup regular de la base de datos
+- Para Gmail, usar "App Passwords" en lugar de la contraseña normal (requiere 2FA activado)
 
 ## 📞 Soporte
 
