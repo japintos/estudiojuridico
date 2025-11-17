@@ -102,10 +102,13 @@ npm install
 **Opción B - Instalar todo de una vez (recomendado):**
 
 ```bash
-# Instalar dependencias de root, backend y frontend
-npm run install-all
+# Instalar dependencias raíz
+npm install
 
-# Ejecutar frontend y backend simultáneamente
+# Instalar dependencias de backend y frontend (usa package-lock)
+npm run install:subdeps
+
+# Ejecutar frontend y backend simultáneamente (modo desarrollo)
 npm run dev
 ```
 
@@ -310,9 +313,10 @@ Solo usuarios con rol de **Abogado** o **Secretaria** pueden enviar reportes por
 
 ## 🚀 Despliegue en Producción (Railway)
 
-1. **Instalar dependencias:** `npm run install-all`
-2. **Compilar el frontend:** `npm run build` (genera `frontend/dist`)
-3. **Iniciar servidor:** `npm start` (levanta Express en modo producción y sirve el build)
+1. **Instalar dependencias raíz:** `npm install`
+2. **Instalar dependencias de backend y frontend:** `npm run install:subdeps`
+3. **Compilar el frontend:** `npm run build` (genera `frontend/dist`)
+4. **Iniciar servidor:** `npm start` (levanta Express en modo producción y sirve el build)
 
 ### Variables esenciales backend
 - `PORT`
