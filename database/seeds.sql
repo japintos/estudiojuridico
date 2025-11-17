@@ -66,9 +66,9 @@ INSERT INTO escritos_generados (id, expediente_id, plantilla_id, contenido_final
 -- AGENDA
 INSERT INTO agenda (id, usuario_id, titulo, descripcion, tipo, fecha_hora, fecha_vencimiento, expediente_id,
                     urgente, completada, recordatorio_enviado, created_at) VALUES
-  (1, 2, 'Preparar contestación EXP-2023-0002', 'Revisar prueba documental', 'revision', '2023-05-25 09:00:00', NULL, 2, FALSE, FALSE, FALSE, '2023-05-01 08:00:00'),
+  (1, 1, 'Preparar contestación EXP-2023-0002', 'Revisar prueba documental', 'revision', '2023-05-25 09:00:00', NULL, 2, FALSE, FALSE, FALSE, '2023-05-01 08:00:00'),
   (2, 1, 'Vencimiento traslado EXP-2023-0001', 'Responder traslado dentro de 5 días', 'vencimiento', '2023-04-18 09:00:00', '2023-04-23', 1, TRUE, FALSE, FALSE, '2023-04-10 12:00:00'),
-  (3, 3, 'Audiencia instructiva EXP-2024-0003', 'Coordinar perito contable', 'audiencia', '2024-05-20 14:00:00', NULL, 3, FALSE, FALSE, FALSE, '2024-04-30 10:15:00');
+  (3, 1, 'Audiencia instructiva EXP-2024-0003', 'Coordinar perito contable', 'audiencia', '2024-05-20 14:00:00', NULL, 3, FALSE, FALSE, FALSE, '2024-04-30 10:15:00');
 
 -- LOGS (opcional)
 INSERT INTO logs (id, usuario_id, accion, modulo, descripcion, ip_address, created_at) VALUES
