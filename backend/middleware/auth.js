@@ -5,11 +5,18 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('❌ Token no proporcionado en:', req.path);
     return res.status(401).json({ error: 'Token no proporcionado' });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET no configurado en variables de entorno');
+    return res.status(500).json({ error: 'Error de configuración del servidor' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('❌ Token inválido o expirado:', err.message);
       return res.status(403).json({ error: 'Token inválido o expirado' });
     }
     req.user = user;

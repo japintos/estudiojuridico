@@ -15,6 +15,7 @@ import Audiencias from './pages/Audiencias/Audiencias'
 import Documentos from './pages/Documentos/Documentos'
 import Plantillas from './pages/Plantillas/Plantillas'
 import Agenda from './pages/Agenda/Agenda'
+import Reportes from './pages/Reportes/Reportes'
 
 import { useAuthStore } from './store/authStore'
 
@@ -43,6 +44,7 @@ function App() {
           <Route path="documentos" element={<Documentos />} />
           <Route path="plantillas" element={<Plantillas />} />
           <Route path="agenda" element={<Agenda />} />
+          <Route path="reportes" element={<Reportes />} />
         </Route>
       </Routes>
       <ToastContainer

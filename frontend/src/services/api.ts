@@ -9,16 +9,26 @@ const api = axios.create({
 
 // Interceptor para agregar token a las peticiones
 api.interceptors.request.use((config) => {
+  // No agregar token a rutas públicas como /login
+  if (config.url?.includes('/auth/login')) {
+    return config
+  }
+
   const token = localStorage.getItem('auth-storage')
   if (token) {
     try {
       const parsed = JSON.parse(token)
-      const tokenValue = parsed?.state?.token
+      // Buscar token en diferentes estructuras posibles
+      const tokenValue = parsed?.state?.token || parsed?.token
       if (tokenValue) {
         config.headers.Authorization = `Bearer ${tokenValue}`
       }
+      // No mostrar warning si es una ruta pública o si simplemente no hay token aún
     } catch (error) {
-      console.error('Error parsing auth storage:', error)
+      // Solo mostrar error si realmente hay un problema de parsing
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error parsing auth storage:', error)
+      }
     }
   }
   return config
@@ -28,10 +38,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expirado o inválido
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Token expirado, inválido o sin permisos
       localStorage.removeItem('auth-storage')
-      window.location.href = '/login'
+      // Solo redirigir si no estamos ya en login
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

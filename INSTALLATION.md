@@ -65,7 +65,20 @@ JWT_EXPIRATION=8h
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=10485760
+
+# Configuración de Correo Electrónico (Opcional - para reportes y vencimientos)
+# Si no se configuran, el sistema funcionará pero no enviará correos
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu_email@gmail.com
+SMTP_PASSWORD=tu_app_password_gmail
 ```
+
+**Nota sobre correo:** 
+- Para Gmail, necesitas generar una "Contraseña de aplicación" desde tu cuenta de Google
+- El sistema enviará correos automáticamente con vencimientos próximos (diariamente a las 8:00 AM)
+- Si no configuras el correo, el sistema funcionará normalmente pero no enviará emails
 
 ### 4. Configuración del Frontend
 
