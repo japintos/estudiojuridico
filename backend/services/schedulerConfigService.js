@@ -5,11 +5,13 @@ const CONFIG_PATH = path.join(__dirname, '../config/emailSchedule.json');
 
 const DEFAULT_CONFIG = {
   vencimientos: {
-    hora: '08:00'
+    hora: '08:00',
+    destinatarios: [] // Array de user_ids o emails
   },
   expedientes_inactivos: {
     hora: '08:30',
-    dias: [1, 16]
+    dias: [1, 16],
+    destinatarios: [] // Array de user_ids o emails
   }
 };
 

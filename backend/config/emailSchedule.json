@@ -1,10 +1,12 @@
 {
   "vencimientos": {
-    "hora": "08:00"
+    "hora": "08:00",
+    "destinatarios": []
   },
   "expedientes_inactivos": {
     "hora": "08:30",
-    "dias": [1, 16]
+    "dias": [1, 16],
+    "destinatarios": []
   }
 }
 

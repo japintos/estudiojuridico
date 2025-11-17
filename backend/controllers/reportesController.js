@@ -498,10 +498,32 @@ const obtenerDatosReporte = async (tipo, filtros) => {
  */
 const enviarReportePorCorreo = async (req, res, next) => {
   try {
-    const { tipo, email, fecha_desde, fecha_hasta, ...otrosFiltros } = req.body;
+    const { tipo, email, emails, fecha_desde, fecha_hasta, ...otrosFiltros } = req.body;
 
-    if (!tipo || !email) {
-      return res.status(400).json({ error: 'Tipo de reporte y email son requeridos' });
+    // Aceptar email (string) o emails (array) o user_ids (array)
+    let destinatarios = [];
+    
+    if (emails && Array.isArray(emails)) {
+      destinatarios = emails;
+    } else if (email) {
+      destinatarios = [email];
+    } else if (req.body.user_ids && Array.isArray(req.body.user_ids)) {
+      // Si se envían IDs de usuarios, obtener sus emails
+      const [usuarios] = await pool.query(
+        'SELECT email FROM usuarios WHERE id IN (?) AND activo = TRUE AND email IS NOT NULL',
+        [req.body.user_ids]
+      );
+      destinatarios = usuarios.map(u => u.email).filter(Boolean);
+    } else {
+      return res.status(400).json({ error: 'Se requiere al menos un email o user_id' });
+    }
+
+    if (destinatarios.length === 0) {
+      return res.status(400).json({ error: 'No se encontraron destinatarios válidos' });
+    }
+
+    if (!tipo) {
+      return res.status(400).json({ error: 'Tipo de reporte es requerido' });
     }
 
     // Obtener datos del reporte
@@ -511,16 +533,30 @@ const enviarReportePorCorreo = async (req, res, next) => {
     // Generar PDF
     const pdfBuffer = await generarPDFReporte(tipo, datos, filtros);
 
-    // Enviar correo
-    await sendReporteEmail({
+    // Enviar correo a todos los destinatarios
+    const resultados = await sendReporteEmail({
       titulo: `Reporte de ${tipo}`,
       tipo,
       fecha_desde: fecha_desde || 'N/A',
       fecha_hasta: fecha_hasta || 'N/A',
       resumen: `Reporte generado automáticamente con ${datos.expedientes?.length || datos.vencimientos?.length || 0} registros.`
-    }, email, pdfBuffer);
+    }, destinatarios, pdfBuffer);
 
-    res.json({ message: 'Reporte enviado por correo exitosamente' });
+    const exitosos = resultados.filter(r => r.success).length;
+    const fallidos = resultados.filter(r => !r.success);
+
+    if (fallidos.length > 0) {
+      return res.status(207).json({ 
+        message: `Reporte enviado a ${exitosos} de ${destinatarios.length} destinatarios`,
+        exitosos,
+        fallidos: fallidos.map(f => ({ email: f.email, error: f.error }))
+      });
+    }
+
+    res.json({ 
+      message: `Reporte enviado exitosamente a ${exitosos} destinatario(s)`,
+      destinatarios: exitosos
+    });
   } catch (error) {
     next(error);
   }

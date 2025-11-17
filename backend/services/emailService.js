@@ -143,10 +143,12 @@ const sendVencimientoEmail = async (vencimiento, destinatario) => {
 /**
  * Envía un reporte por correo
  * @param {Object} reporte - Datos del reporte
- * @param {string} destinatario - Email del destinatario
+ * @param {string|string[]} destinatarios - Email(s) del destinatario(s)
  * @param {Buffer} pdfBuffer - Buffer del PDF (opcional)
  */
-const sendReporteEmail = async (reporte, destinatario, pdfBuffer = null) => {
+const sendReporteEmail = async (reporte, destinatarios, pdfBuffer = null) => {
+  // Normalizar a array
+  const emails = Array.isArray(destinatarios) ? destinatarios : [destinatarios];
   const html = `
     <!DOCTYPE html>
     <html>
@@ -208,12 +210,23 @@ const sendReporteEmail = async (reporte, destinatario, pdfBuffer = null) => {
     content: pdfBuffer
   }] : [];
 
-  return await sendEmail({
-    to: destinatario,
-    subject: `📊 Reporte: ${reporte.titulo}`,
-    html: html,
-    attachments: attachments
-  });
+  // Enviar a todos los destinatarios
+  const resultados = [];
+  for (const email of emails) {
+    try {
+      const resultado = await sendEmail({
+        to: email,
+        subject: `📊 Reporte: ${reporte.titulo}`,
+        html: html,
+        attachments: attachments
+      });
+      resultados.push({ email, success: true, messageId: resultado.messageId });
+    } catch (error) {
+      resultados.push({ email, success: false, error: error.message });
+    }
+  }
+
+  return resultados;
 };
 
 /**

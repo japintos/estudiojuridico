@@ -138,27 +138,59 @@ const ejecutarEnvioExpedientesInactivos = async () => {
 
     console.log(`📧 Encontrados ${datos.total} expedientes sin movimiento`);
 
-    const [usuarios] = await pool.query(
-      `SELECT id, nombre, apellido, email 
-         FROM usuarios 
+    // Obtener destinatarios configurados
+    const schedule = getEmailSchedule();
+    const destinatariosConfig = schedule.expedientes_inactivos?.destinatarios || [];
+    
+    let emailsDestinatarios = [];
+    
+    if (destinatariosConfig.length > 0) {
+      // Si hay destinatarios configurados, obtener sus emails
+      // Pueden ser user_ids (números) o emails (strings)
+      const userIds = destinatariosConfig.filter(d => typeof d === 'number' || /^\d+$/.test(String(d)));
+      const emailsDirectos = destinatariosConfig.filter(d => typeof d === 'string' && d.includes('@'));
+      
+      if (userIds.length > 0) {
+        const [usuarios] = await pool.query(
+          `SELECT email FROM usuarios WHERE id IN (?) AND activo = TRUE AND email IS NOT NULL`,
+          [userIds]
+        );
+        emailsDestinatarios.push(...usuarios.map(u => u.email));
+      }
+      
+      emailsDestinatarios.push(...emailsDirectos);
+    } else {
+      // Si no hay destinatarios configurados, usar comportamiento por defecto (todos los abogados y secretarias)
+      const [usuarios] = await pool.query(
+        `SELECT email FROM usuarios 
          WHERE rol IN ('abogado', 'secretaria') 
          AND activo = TRUE 
          AND email IS NOT NULL`
-    );
+      );
+      emailsDestinatarios = usuarios.map(u => u.email);
+    }
+
+    if (emailsDestinatarios.length === 0) {
+      console.log('⚠️ No hay destinatarios configurados para el reporte de expedientes sin movimiento');
+      return;
+    }
+
+    // Eliminar duplicados
+    emailsDestinatarios = [...new Set(emailsDestinatarios)];
 
     const pdfBuffer = await generarPDFExpedientesSinMovimiento(datos);
 
     let enviados = 0;
     let errores = 0;
 
-    for (const usuario of usuarios) {
+    for (const email of emailsDestinatarios) {
       try {
-        await sendExpedientesSinMovimientoEmail(datos, usuario.email, pdfBuffer);
+        await sendExpedientesSinMovimientoEmail(datos, email, pdfBuffer);
         enviados++;
-        console.log(`✅ Reporte enviado a ${usuario.email} (${usuario.nombre} ${usuario.apellido})`);
+        console.log(`✅ Reporte enviado a ${email}`);
       } catch (error) {
         errores++;
-        console.error(`❌ Error al enviar reporte a ${usuario.email}:`, error.message);
+        console.error(`❌ Error al enviar reporte a ${email}:`, error.message);
       }
     }
 

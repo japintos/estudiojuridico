@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Filter, AlertCircle, Briefcase, Settings, Send } from 'lucide-react'
+import { Filter, AlertCircle, Briefcase, Settings, Send, Mail } from 'lucide-react'
 import api from '../../services/api'
 import { toast } from 'react-toastify'
 import { useAuthStore } from '../../store/authStore'
@@ -78,6 +78,15 @@ interface ExpedientesInactivosInfo {
   por_fuero: Record<string, number>
 }
 
+interface Usuario {
+  id: number
+  nombre: string
+  apellido: string
+  email: string
+  rol: string
+  activo: boolean
+}
+
 type TipoReporte = 'expedientes' | 'vencimientos' | 'audiencias' | 'general'
 type TipoReporteEnvio = 'expedientes' | 'vencimientos'
 
@@ -113,6 +122,12 @@ export default function Reportes() {
   })
   const [loadingSchedule, setLoadingSchedule] = useState(true)
   const [savingSchedule, setSavingSchedule] = useState(false)
+  const [testingEmail, setTestingEmail] = useState(false)
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false)
+  const [destinatariosManuales, setDestinatariosManuales] = useState<number[]>([])
+  const [destinatariosVencimientos, setDestinatariosVencimientos] = useState<number[]>([])
+  const [destinatariosInactivos, setDestinatariosInactivos] = useState<number[]>([])
   const { user } = useAuthStore()
 
   const [reporteFiltros, setReporteFiltros] = useState<ReporteFiltrosState>(() => createEmptyFiltros())
@@ -132,7 +147,22 @@ export default function Reportes() {
 
   useEffect(() => {
     fetchEmailSchedule()
+    fetchUsuarios()
   }, [])
+
+  const fetchUsuarios = async () => {
+    setLoadingUsuarios(true)
+    try {
+      const { data } = await api.get<Usuario[]>('/usuarios', {
+        params: { activo: true }
+      })
+      setUsuarios(data.filter(u => u.email && u.rol !== 'pasante'))
+    } catch (error: any) {
+      toast.error('No se pudieron cargar los usuarios')
+    } finally {
+      setLoadingUsuarios(false)
+    }
+  }
 
   const buildParamsForTipo = (filtros: ReporteFiltrosState, tipo: TipoReporte | TipoReporteEnvio) => {
     const params: any = {}
@@ -222,6 +252,12 @@ export default function Reportes() {
         inactivosHora: data?.expedientes_inactivos?.hora || '08:30',
         inactivosDias: (data?.expedientes_inactivos?.dias || [1, 16]).join(',')
       })
+      // Cargar destinatarios configurados (pueden ser user_ids o emails)
+      const vencDest = data?.vencimientos?.destinatarios || []
+      const inactDest = data?.expedientes_inactivos?.destinatarios || []
+      // Filtrar solo user_ids (números)
+      setDestinatariosVencimientos(vencDest.filter((d: any) => typeof d === 'number'))
+      setDestinatariosInactivos(inactDest.filter((d: any) => typeof d === 'number'))
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'No se pudo cargar el horario automático')
     } finally {
@@ -247,9 +283,16 @@ export default function Reportes() {
 
     setSavingSchedule(true)
     try {
-      const payload = {
-        vencimientos: { hora: autoSchedule.vencimientosHora },
-        expedientes_inactivos: { hora: autoSchedule.inactivosHora, dias }
+      const payload: any = {
+        vencimientos: { 
+          hora: autoSchedule.vencimientosHora,
+          ...(destinatariosVencimientos.length > 0 && { destinatarios: destinatariosVencimientos })
+        },
+        expedientes_inactivos: { 
+          hora: autoSchedule.inactivosHora, 
+          dias,
+          ...(destinatariosInactivos.length > 0 && { destinatarios: destinatariosInactivos })
+        }
       }
 
       const { data } = await api.put('/config/email-schedule', payload)
@@ -260,6 +303,10 @@ export default function Reportes() {
         inactivosDias: data.config.expedientes_inactivos.dias.join(',')
       })
 
+      // Actualizar destinatarios desde la respuesta
+      setDestinatariosVencimientos(data.config.vencimientos.destinatarios || [])
+      setDestinatariosInactivos(data.config.expedientes_inactivos.destinatarios || [])
+
       toast.success('Horarios automáticos actualizados')
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'No se pudo actualizar el horario automático')
@@ -269,8 +316,8 @@ export default function Reportes() {
   }
 
   const handleEnviarCorreo = async () => {
-    if (!emailDestino.trim()) {
-      toast.error('Ingrese un email válido')
+    if (destinatariosManuales.length === 0 && !emailDestino.trim()) {
+      toast.error('Seleccione al menos un destinatario o ingrese un email')
       return
     }
 
@@ -278,17 +325,65 @@ export default function Reportes() {
     try {
       const filtrosEnvio = buildParamsForTipo(correoFiltros, tipoEnvio)
 
-      await api.post('/reportes/enviar', {
+      const payload: any = {
         tipo: tipoEnvio,
-        email: emailDestino.trim(),
         ...filtrosEnvio
-      })
-      toast.success('Reporte enviado por correo exitosamente')
+      }
+
+      // Priorizar user_ids sobre email directo
+      if (destinatariosManuales.length > 0) {
+        payload.user_ids = destinatariosManuales
+      } else if (emailDestino.trim()) {
+        payload.email = emailDestino.trim()
+      }
+
+      const response = await api.post('/reportes/enviar', payload)
+      toast.success(response.data.message || 'Reporte enviado por correo exitosamente')
       setEmailDestino('')
+      setDestinatariosManuales([])
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al enviar el reporte')
+      const errorMsg = error.response?.data?.error || 'Error al enviar el reporte'
+      if (error.response?.status === 207) {
+        // Algunos correos se enviaron, otros no
+        toast.warning(error.response.data.message)
+      } else {
+        toast.error(errorMsg)
+      }
     } finally {
       setEnviandoCorreo(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    if (!emailDestino.trim()) {
+      toast.error('Ingrese un email válido para la prueba')
+      return
+    }
+
+    setTestingEmail(true)
+    try {
+      const response = await api.post('/config/test-email', {
+        email: emailDestino.trim()
+      })
+      
+      if (response.data.success) {
+        toast.success('✅ Correo de prueba enviado exitosamente. Revisa tu bandeja de entrada.')
+      } else {
+        toast.warning('El correo se envió pero hubo un problema. Revisa los logs del servidor.')
+      }
+    } catch (error: any) {
+      const errorData = error.response?.data
+      if (errorData?.details) {
+        // Mostrar sugerencias específicas según el tipo de error
+        toast.error(`${errorData.error}: ${errorData.details.suggestion || ''}`)
+        if (errorData.details.commonIssues) {
+          console.error('Problemas comunes:', errorData.details.commonIssues)
+        }
+      } else {
+        toast.error(errorData?.error || 'Error al enviar correo de prueba')
+      }
+    } finally {
+      setTestingEmail(false)
     }
   }
 
@@ -772,8 +867,34 @@ export default function Reportes() {
                 <option value="vencimientos">Vencimientos (alertas y prioridades)</option>
               </select>
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Destinatarios * (seleccione usuarios o ingrese email)
+              </label>
+              <select
+                multiple
+                value={destinatariosManuales.map(String)}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value))
+                  setDestinatariosManuales(selected)
+                }}
+                className="input-field min-h-[100px]"
+                disabled={loadingUsuarios}
+              >
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} {u.apellido} ({u.email}) - {u.rol}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Mantenga presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios
+              </p>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email destinatario *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                O ingrese email externo
+              </label>
               <input
                 type="email"
                 value={emailDestino}
@@ -781,6 +902,9 @@ export default function Reportes() {
                 className="input-field"
                 placeholder="ejemplo@cliente.com"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Solo si no seleccionó usuarios arriba
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Desde</label>
@@ -874,7 +998,17 @@ export default function Reportes() {
             </p>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleTestEmail}
+              disabled={testingEmail || !emailDestino.trim()}
+              className="btn-secondary flex items-center"
+              title="Prueba la configuración de correo enviando un email de prueba"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {testingEmail ? 'Probando...' : 'Probar correo'}
+            </button>
             <button
               type="button"
               onClick={handleEnviarCorreo}
@@ -938,6 +1072,57 @@ export default function Reportes() {
                 placeholder="1,16"
               />
               <p className="text-xs text-gray-500 mt-1">Separados por coma. Ej: 1,16</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Destinatarios para vencimientos automáticos
+              </label>
+              <select
+                multiple
+                value={destinatariosVencimientos.map(String)}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value))
+                  setDestinatariosVencimientos(selected)
+                }}
+                className="input-field min-h-[100px]"
+                disabled={loadingSchedule || loadingUsuarios}
+              >
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} {u.apellido} ({u.email}) - {u.rol}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Si no selecciona ninguno, se enviará a todos los usuarios con vencimientos asignados
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Destinatarios para reporte de expedientes inactivos
+              </label>
+              <select
+                multiple
+                value={destinatariosInactivos.map(String)}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value))
+                  setDestinatariosInactivos(selected)
+                }}
+                className="input-field min-h-[100px]"
+                disabled={loadingSchedule || loadingUsuarios}
+              >
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre} {u.apellido} ({u.email}) - {u.rol}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Si no selecciona ninguno, se enviará a todos los abogados y secretarias activos
+              </p>
             </div>
           </div>
 
