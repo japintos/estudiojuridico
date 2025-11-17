@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+const API_BASE_URL =
+  typeof window !== 'undefined' && import.meta.env?.VITE_API_URL
+    ? import.meta.env.VITE_API_URL
+    : '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,7 +20,7 @@ api.interceptors.request.use((config) => {
   }
 
   const token = localStorage.getItem('auth-storage')
-  if (token) {
+      if (token) {
     try {
       const parsed = JSON.parse(token)
       // Buscar token en diferentes estructuras posibles
@@ -26,7 +31,7 @@ api.interceptors.request.use((config) => {
       // No mostrar warning si es una ruta pública o si simplemente no hay token aún
     } catch (error) {
       // Solo mostrar error si realmente hay un problema de parsing
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Error parsing auth storage:', error)
       }
     }
