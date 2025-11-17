@@ -7,6 +7,7 @@ import {
   FileText,
   AlertTriangle 
 } from 'lucide-react'
+import DashboardCard from './Dashboard/DashboardCard'
 
 interface Stats {
   porFuero: Array<{
@@ -107,61 +108,30 @@ export default function Dashboard() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Expedientes</p>
-              <p className="text-2xl font-bold text-gray-900">{totalExpedientes}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Activos</p>
-              <p className="text-2xl font-bold text-gray-900">{totalActivos}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Finalizados</p>
-              <p className="text-2xl font-bold text-gray-900">{totalFinalizados}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <CalendarIcon className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Próximas Audiencias</p>
-              <p className="text-2xl font-bold text-gray-900">{stats?.proximasAudiencias.length || 0}</p>
-            </div>
-          </div>
-        </div>
+        <DashboardCard
+          title="Expedientes"
+          value={totalExpedientes}
+          colorClass="bg-blue-100"
+          icon={<Briefcase className="w-6 h-6 text-blue-600" />}
+        />
+        <DashboardCard
+          title="Activos"
+          value={totalActivos}
+          colorClass="bg-green-100"
+          icon={<TrendingUp className="w-6 h-6 text-green-600" />}
+        />
+        <DashboardCard
+          title="Finalizados"
+          value={totalFinalizados}
+          colorClass="bg-purple-100"
+          icon={<FileText className="w-6 h-6 text-purple-600" />}
+        />
+        <DashboardCard
+          title="Próximas Audiencias"
+          value={stats?.proximasAudiencias.length || 0}
+          colorClass="bg-orange-100"
+          icon={<CalendarIcon className="w-6 h-6 text-orange-600" />}
+        />
       </div>
 
       {/* Charts */}
