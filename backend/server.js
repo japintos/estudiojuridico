@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const errorHandler = require('./middleware/errorHandler');
@@ -59,6 +61,24 @@ app.use('/api/agenda', agendaRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/config', configRoutes);
+
+// Servir frontend compilado en producción
+if (process.env.NODE_ENV === 'production') {
+  const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
+  const hasFrontendBuild = fs.existsSync(frontendDistPath);
+
+  if (hasFrontendBuild) {
+    app.use(express.static(frontendDistPath));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path === '/health') {
+        return next();
+      }
+      return res.sendFile(path.join(frontendDistPath, 'index.html'));
+    });
+  } else {
+    console.warn('⚠️ No se encontró el build del frontend. Ejecuta "npm run build" antes de iniciar en producción.');
+  }
+}
 
 // Manejo de errores
 app.use(errorHandler);

@@ -83,6 +83,13 @@ SMTP_USER=tu_email@gmail.com
 SMTP_PASSWORD=tu_app_password
 ```
 
+### Variables para el Frontend (`frontend/.env.local` o `.env.production`)
+
+```env
+VITE_API_URL=http://localhost:3001/api
+VITE_ADMIN_EMAILS=admin@estudiojuridico.com
+```
+
 ### Paso 3: Configurar y Ejecutar
 
 **Opción A - Instalar y ejecutar manualmente:**
@@ -300,6 +307,25 @@ Cada correo incluye:
 ### Permisos
 
 Solo usuarios con rol de **Abogado** o **Secretaria** pueden enviar reportes por correo.
+
+## 🚀 Despliegue en Producción (Railway)
+
+1. **Instalar dependencias:** `npm run install-all`
+2. **Compilar el frontend:** `npm run build` (genera `frontend/dist`)
+3. **Iniciar servidor:** `npm start` (levanta Express en modo producción y sirve el build)
+
+### Variables esenciales backend
+- `PORT`
+- `NODE_ENV`
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- `JWT_SECRET`, `JWT_EXPIRATION`
+- `ALLOWED_ORIGINS`
+- (Opcional) `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`
+- `ADMIN_EMAIL` o `ADMIN_EMAILS` (para habilitar la sección de usuarios)
+
+### Variables esenciales frontend
+- `VITE_API_URL` → URL del backend (ej. `https://tu-app.up.railway.app/api`)
+- `VITE_ADMIN_EMAILS` → coma separada con los correos administradores
 
 ## 📝 Notas de Desarrollo
 
