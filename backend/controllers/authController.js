@@ -88,8 +88,41 @@ const getCurrentUser = async (req, res, next) => {
   }
 };
 
+const changePassword = async (req, res, next) => {
+  try {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Debe indicar la contraseña actual y la nueva contraseña' });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const [users] = await pool.query('SELECT id, password_hash FROM usuarios WHERE id = ?', [req.user.id]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const usuario = users[0];
+    const validPassword = await bcrypt.compare(current_password, usuario.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'La contraseña actual no es correcta' });
+    }
+
+    const hashed = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE usuarios SET password_hash = ?, updated_at = NOW() WHERE id = ?', [hashed, req.user.id]);
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
-  getCurrentUser
+  getCurrentUser,
+  changePassword
 };
 

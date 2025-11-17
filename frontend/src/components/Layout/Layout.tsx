@@ -9,18 +9,30 @@ import {
   FileEdit,
   Settings,
   LogOut,
-  BarChart3
+  BarChart3,
+  Shield,
+  UserCog
 } from 'lucide-react'
 import logoSGJ from '../../img/logoSGJ.png'
+import { useMemo } from 'react'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const adminEmails = useMemo(() => {
+    const value = import.meta.env.VITE_ADMIN_EMAILS || import.meta.env.VITE_ADMIN_EMAIL || 'admin@estudiojuridico.com'
+    return value
+      .split(',')
+      .map((email: string) => email.trim().toLowerCase())
+      .filter((email: string) => email.length > 0)
+  }, [])
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
+
+  const isAdminUser = user?.email ? adminEmails.includes(user.email.toLowerCase()) : false
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['abogado', 'secretaria', 'gestor', 'pasante'] },
@@ -31,6 +43,8 @@ export default function Layout() {
     { path: '/plantillas', icon: FileEdit, label: 'Plantillas', roles: ['abogado', 'secretaria'] },
     { path: '/agenda', icon: Settings, label: 'Agenda', roles: ['abogado', 'secretaria', 'gestor', 'pasante'] },
     { path: '/reportes', icon: BarChart3, label: 'Reportes', roles: ['abogado', 'secretaria'] },
+    { path: '/usuarios', icon: Shield, label: 'Usuarios', roles: ['abogado'], adminOnly: true },
+    { path: '/perfil', icon: UserCog, label: 'Mi Perfil', roles: ['abogado', 'secretaria', 'gestor', 'pasante'] }
   ]
 
   const getRoleBadge = (rol: string) => {
@@ -43,7 +57,11 @@ export default function Layout() {
     return colors[rol] || 'badge-gray'
   }
 
-  const userNavItems = navItems.filter(item => item.roles.includes(user?.rol || ''))
+  const userNavItems = navItems.filter(item => {
+    const roleAllowed = item.roles.includes(user?.rol || '')
+    const adminCondition = item.adminOnly ? isAdminUser : true
+    return roleAllowed && adminCondition
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">

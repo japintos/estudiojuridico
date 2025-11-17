@@ -1,5 +1,19 @@
 const jwt = require('jsonwebtoken');
 
+const getAdminEmails = () => {
+  const envValue = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || 'admin@estudiojuridico.com';
+  return envValue
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(email => email.length > 0);
+};
+
+const isAdminUser = (user) => {
+  if (!user || !user.email) return false;
+  const adminEmails = getAdminEmails();
+  return adminEmails.includes(user.email.toLowerCase());
+};
+
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -38,6 +52,18 @@ const authorizeRole = (...roles) => {
   };
 };
 
+const authorizeAdminUser = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  if (!isAdminUser(req.user)) {
+    return res.status(403).json({ error: 'Solo el administrador puede acceder a esta sección' });
+  }
+
+  next();
+};
+
 const logger = (req, res, next) => {
   const pool = require('../config/database');
   
@@ -62,6 +88,8 @@ const logger = (req, res, next) => {
 module.exports = {
   authenticateToken,
   authorizeRole,
+  authorizeAdminUser,
+  isAdminUser,
   logger
 };
 
