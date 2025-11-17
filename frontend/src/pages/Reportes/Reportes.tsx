@@ -88,7 +88,7 @@ interface Usuario {
 }
 
 type TipoReporte = 'expedientes' | 'vencimientos' | 'audiencias' | 'general'
-type TipoReporteEnvio = 'expedientes' | 'vencimientos'
+type TipoReporteEnvio = 'expedientes' | 'vencimientos' | 'audiencias'
 
 export default function Reportes() {
   const createEmptyFiltros = (): ReporteFiltrosState => ({
@@ -865,6 +865,7 @@ export default function Reportes() {
               >
                 <option value="expedientes">Expedientes (detalle + estadísticas)</option>
                 <option value="vencimientos">Vencimientos (alertas y prioridades)</option>
+                <option value="audiencias">Audiencias (programadas y realizadas)</option>
               </select>
             </div>
             <div className="md:col-span-2">
@@ -988,6 +989,38 @@ export default function Reportes() {
                 </div>
               </>
             )}
+            {tipoEnvio === 'audiencias' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Realizada</label>
+                  <select
+                    value={correoFiltros.realizada}
+                    onChange={(e) => setCorreoFiltros({ ...correoFiltros, realizada: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="">Todas</option>
+                    <option value="false">Pendientes</option>
+                    <option value="true">Realizadas</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                  <select
+                    value={correoFiltros.tipo}
+                    onChange={(e) => setCorreoFiltros({ ...correoFiltros, tipo: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="">Todos</option>
+                    <option value="primera_audiencia">Primera Audiencia</option>
+                    <option value="mediacion">Mediación</option>
+                    <option value="instructiva">Instructiva</option>
+                    <option value="vista_causa">Vista de Causa</option>
+                    <option value="medidas_cautelares">Medidas Cautelares</option>
+                    <option value="otra">Otra</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1026,8 +1059,8 @@ export default function Reportes() {
             <div>
               <p className="text-lg font-semibold text-gray-900">Horarios de envío automático</p>
               <p className="text-sm text-gray-600">
-                Define a qué hora se envían automáticamente las alertas de vencimientos y el reporte quincenal de
-                expedientes sin movimiento.
+                Define a qué hora se envían automáticamente el reporte diario (vencimientos, audiencias y citas del día siguiente) 
+                y el reporte quincenal de expedientes sin movimiento.
               </p>
             </div>
             <button

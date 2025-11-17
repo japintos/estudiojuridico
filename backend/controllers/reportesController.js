@@ -347,6 +347,16 @@ const generarPDFReporte = async (tipo, datos, filtros) => {
           doc.text(`   Días restantes: ${v.dias_restantes} | ${v.urgente ? 'URGENTE' : ''}`);
           doc.moveDown(0.5);
         });
+      } else if (tipo === 'audiencias' && datos.audiencias) {
+        doc.fontSize(12).text('Audiencias', { underline: true });
+        doc.moveDown();
+        datos.audiencias.forEach((a, index) => {
+          doc.fontSize(10).text(`${index + 1}. ${a.tipo} - ${new Date(a.fecha_hora).toLocaleString('es-AR')}`);
+          doc.text(`   Expediente: ${a.numero_expediente || 'N/A'} | ${a.caratula || ''}`);
+          doc.text(`   Sala: ${a.sala || 'N/A'} | Juez: ${a.juez || 'N/A'}`);
+          doc.text(`   Estado: ${a.realizada ? 'Realizada' : 'Pendiente'}`);
+          doc.moveDown(0.5);
+        });
       }
 
       // Estadísticas
@@ -488,6 +498,54 @@ const obtenerDatosReporte = async (tipo, filtros) => {
     };
 
     return { vencimientos: vencimientosConDias, estadisticas };
+  } else if (tipo === 'audiencias') {
+    let query = `
+      SELECT 
+        a.*,
+        e.numero_expediente,
+        e.caratula,
+        e.fuero,
+        u.nombre as nombre_usuario,
+        u.apellido as apellido_usuario
+      FROM audiencias a
+      LEFT JOIN expedientes e ON a.expediente_id = e.id
+      LEFT JOIN usuarios u ON a.usuario_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (fecha_desde) {
+      query += ' AND DATE(a.fecha_hora) >= ?';
+      params.push(fecha_desde);
+    }
+    if (fecha_hasta) {
+      query += ' AND DATE(a.fecha_hora) <= ?';
+      params.push(fecha_hasta);
+    }
+    if (otrosFiltros.realizada !== undefined) {
+      query += ' AND a.realizada = ?';
+      params.push(otrosFiltros.realizada === 'true');
+    }
+    if (otrosFiltros.tipo) {
+      query += ' AND a.tipo = ?';
+      params.push(otrosFiltros.tipo);
+    }
+
+    query += ' ORDER BY a.fecha_hora ASC';
+    const [audiencias] = await pool.query(query, params);
+
+    const estadisticas = {
+      total: audiencias.length,
+      realizadas: audiencias.filter(a => a.realizada).length,
+      pendientes: audiencias.filter(a => !a.realizada).length,
+      por_tipo: {}
+    };
+
+    audiencias.forEach(aud => {
+      estadisticas.por_tipo[aud.tipo] = (estadisticas.por_tipo[aud.tipo] || 0) + 1;
+    });
+
+    return { audiencias, estadisticas };
   }
 
   return {};
@@ -692,7 +750,179 @@ const generarPDFExpedientesSinMovimiento = async (datos) => {
   });
 };
 
+/**
+ * Genera PDF del reporte diario (vencimientos, audiencias, citas del día siguiente)
+ */
+const generarPDFReporteDiario = async (datos) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks = [];
+
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Encabezado
+      doc.fontSize(20).text('Reporte Diario - Día Laboral Posterior', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(14).text(`Fecha: ${new Date(datos.fecha).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, { align: 'center' });
+      doc.fontSize(10).text(`Generado: ${new Date().toLocaleDateString('es-AR')}`, { align: 'center' });
+      doc.moveDown(2);
+
+      // Resumen
+      doc.fontSize(12).text('Resumen', { underline: true });
+      doc.moveDown();
+      doc.fontSize(10).text(`Vencimientos: ${datos.estadisticas.total_vencimientos}`);
+      doc.text(`Audiencias: ${datos.estadisticas.total_audiencias}`);
+      doc.text(`Citas/Reuniones: ${datos.estadisticas.total_citas}`);
+      doc.moveDown(2);
+
+      // Vencimientos
+      if (datos.vencimientos.length > 0) {
+        doc.fontSize(14).text('Vencimientos', { underline: true });
+        doc.moveDown();
+        datos.vencimientos.forEach((v, index) => {
+          doc.fontSize(10).text(`${index + 1}. ${v.titulo}`);
+          doc.text(`   Expediente: ${v.numero_expediente || 'N/A'} | ${v.caratula || ''}`);
+          doc.text(`   Vence: ${new Date(v.fecha_vencimiento).toLocaleDateString('es-AR')} | ${v.urgente ? 'URGENTE' : ''}`);
+          if (v.descripcion) {
+            doc.text(`   ${v.descripcion.substring(0, 80)}...`);
+          }
+          doc.moveDown(0.5);
+        });
+        doc.moveDown();
+      }
+
+      // Audiencias
+      if (datos.audiencias.length > 0) {
+        doc.fontSize(14).text('Audiencias', { underline: true });
+        doc.moveDown();
+        datos.audiencias.forEach((a, index) => {
+          doc.fontSize(10).text(`${index + 1}. ${a.tipo} - ${new Date(a.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`);
+          doc.text(`   Expediente: ${a.numero_expediente || 'N/A'} | ${a.caratula || ''}`);
+          doc.text(`   Sala: ${a.sala || 'N/A'} | Juez: ${a.juez || 'N/A'}`);
+          if (a.observaciones) {
+            doc.text(`   ${a.observaciones.substring(0, 80)}...`);
+          }
+          doc.moveDown(0.5);
+        });
+        doc.moveDown();
+      }
+
+      // Citas/Reuniones
+      if (datos.citas.length > 0) {
+        doc.fontSize(14).text('Citas y Reuniones', { underline: true });
+        doc.moveDown();
+        datos.citas.forEach((c, index) => {
+          doc.fontSize(10).text(`${index + 1}. ${c.titulo} - ${new Date(c.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`);
+          doc.text(`   Tipo: ${c.tipo} | ${c.urgente ? 'URGENTE' : ''}`);
+          if (c.numero_expediente) {
+            doc.text(`   Expediente: ${c.numero_expediente} | ${c.caratula || ''}`);
+          }
+          if (c.descripcion) {
+            doc.text(`   ${c.descripcion.substring(0, 80)}...`);
+          }
+          doc.moveDown(0.5);
+        });
+      }
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+/**
+ * Obtiene datos del día siguiente para reporte diario (vencimientos, audiencias, citas)
+ */
+const obtenerDatosDiaSiguiente = async () => {
+  const hoy = new Date();
+  const manana = new Date(hoy);
+  manana.setDate(hoy.getDate() + 1);
+  const fechaManana = manana.toISOString().split('T')[0];
+
+  // Vencimientos del día siguiente
+  const [vencimientos] = await pool.query(
+    `SELECT 
+      a.*,
+      e.numero_expediente,
+      e.caratula,
+      e.fuero,
+      u.nombre as nombre_usuario,
+      u.apellido as apellido_usuario,
+      u.email as email_usuario
+    FROM agenda a
+    LEFT JOIN expedientes e ON a.expediente_id = e.id
+    LEFT JOIN usuarios u ON a.usuario_id = u.id
+    WHERE a.tipo = 'vencimiento'
+    AND a.fecha_vencimiento IS NOT NULL
+    AND DATE(a.fecha_vencimiento) = ?
+    AND a.completada = FALSE`,
+    [fechaManana]
+  );
+
+  // Audiencias del día siguiente
+  const [audiencias] = await pool.query(
+    `SELECT 
+      a.*,
+      e.numero_expediente,
+      e.caratula,
+      e.fuero,
+      u.nombre as nombre_usuario,
+      u.apellido as apellido_usuario
+    FROM audiencias a
+    LEFT JOIN expedientes e ON a.expediente_id = e.id
+    LEFT JOIN usuarios u ON a.usuario_id = u.id
+    WHERE DATE(a.fecha_hora) = ?
+    AND a.realizada = FALSE`,
+    [fechaManana]
+  );
+
+  // Citas/Agenda del día siguiente (excluyendo vencimientos)
+  const [citas] = await pool.query(
+    `SELECT 
+      a.*,
+      e.numero_expediente,
+      e.caratula,
+      u.nombre as nombre_usuario,
+      u.apellido as apellido_usuario,
+      u.email as email_usuario
+    FROM agenda a
+    LEFT JOIN expedientes e ON a.expediente_id = e.id
+    LEFT JOIN usuarios u ON a.usuario_id = u.id
+    WHERE a.tipo != 'vencimiento'
+    AND DATE(a.fecha_hora) = ?
+    AND a.completada = FALSE`,
+    [fechaManana]
+  );
+
+  return {
+    fecha: fechaManana,
+    vencimientos: vencimientos.map(v => {
+      const fechaVenc = new Date(v.fecha_vencimiento);
+      const hoy = new Date();
+      const diasRestantes = Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24));
+      return {
+        ...v,
+        dias_restantes: diasRestantes,
+        estado_vencimiento: diasRestantes < 0 ? 'vencido' : diasRestantes <= 3 ? 'critico' : 'normal'
+      };
+    }),
+    audiencias,
+    citas,
+    estadisticas: {
+      total_vencimientos: vencimientos.length,
+      total_audiencias: audiencias.length,
+      total_citas: citas.length
+    }
+  };
+};
+
 module.exports = {
+  obtenerDatosDiaSiguiente,
+  generarPDFReporteDiario,
   getReporteExpedientes,
   getReporteVencimientos,
   getReporteAudiencias,

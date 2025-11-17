@@ -3,13 +3,15 @@ const pool = require('../config/database');
 const { getEmailSchedule } = require('../services/schedulerConfigService');
 
 // Importaciones con manejo de errores
-let sendVencimientoEmail, sendExpedientesSinMovimientoEmail;
+let sendVencimientoEmail, sendExpedientesSinMovimientoEmail, sendReporteDiarioEmail;
 let getExpedientesSinMovimiento, generarPDFExpedientesSinMovimiento;
+let obtenerDatosDiaSiguiente, generarPDFReporteDiario;
 
 try {
   const emailService = require('../services/emailService');
   sendVencimientoEmail = emailService.sendVencimientoEmail;
   sendExpedientesSinMovimientoEmail = emailService.sendExpedientesSinMovimientoEmail;
+  sendReporteDiarioEmail = emailService.sendReporteDiarioEmail;
 } catch (error) {
   console.error('⚠️ Error al cargar emailService:', error.message);
 }
@@ -18,6 +20,8 @@ try {
   const reportesController = require('../controllers/reportesController');
   getExpedientesSinMovimiento = reportesController.getExpedientesSinMovimiento;
   generarPDFExpedientesSinMovimiento = reportesController.generarPDFExpedientesSinMovimiento;
+  obtenerDatosDiaSiguiente = reportesController.obtenerDatosDiaSiguiente;
+  generarPDFReporteDiario = reportesController.generarPDFReporteDiario;
 } catch (error) {
   console.error('⚠️ Error al cargar reportesController:', error.message);
 }
@@ -58,65 +62,138 @@ const crearExpresionCronMensual = ({ hours, minutes }, dias) => `${minutes} ${ho
 
 const ejecutarEnvioVencimientos = async () => {
   try {
-    console.log('📧 Ejecutando job de vencimientos...');
+    console.log('📧 Ejecutando job de reporte diario (vencimientos, audiencias, citas)...');
 
-    const hoy = new Date();
-    const en7Dias = new Date();
-    en7Dias.setDate(hoy.getDate() + 7);
+    // Obtener datos del día siguiente
+    if (!obtenerDatosDiaSiguiente || !generarPDFReporteDiario || !sendReporteDiarioEmail) {
+      console.log('⚠️ Funciones de reporte diario no disponibles, usando método anterior');
+      // Fallback al método anterior
+      const hoy = new Date();
+      const en7Dias = new Date();
+      en7Dias.setDate(hoy.getDate() + 7);
 
-    const [vencimientos] = await pool.query(
-      `SELECT 
-          a.*,
-          e.numero_expediente,
-          e.caratula,
-          u.email as email_usuario,
-          u.nombre as nombre_usuario,
-          u.apellido as apellido_usuario
-        FROM agenda a
-        LEFT JOIN expedientes e ON a.expediente_id = e.id
-        LEFT JOIN usuarios u ON a.usuario_id = u.id
-        WHERE a.tipo = 'vencimiento'
-        AND a.fecha_vencimiento IS NOT NULL
-        AND DATE(a.fecha_vencimiento) BETWEEN ? AND ?
-        AND a.completada = FALSE
-        AND u.email IS NOT NULL
-        AND u.activo = TRUE`,
-      [hoy.toISOString().split('T')[0], en7Dias.toISOString().split('T')[0]]
-    );
+      const [vencimientos] = await pool.query(
+        `SELECT 
+            a.*,
+            e.numero_expediente,
+            e.caratula,
+            u.email as email_usuario,
+            u.nombre as nombre_usuario,
+            u.apellido as apellido_usuario
+          FROM agenda a
+          LEFT JOIN expedientes e ON a.expediente_id = e.id
+          LEFT JOIN usuarios u ON a.usuario_id = u.id
+          WHERE a.tipo = 'vencimiento'
+          AND a.fecha_vencimiento IS NOT NULL
+          AND DATE(a.fecha_vencimiento) BETWEEN ? AND ?
+          AND a.completada = FALSE
+          AND u.email IS NOT NULL
+          AND u.activo = TRUE`,
+        [hoy.toISOString().split('T')[0], en7Dias.toISOString().split('T')[0]]
+      );
 
-    console.log(`📧 Encontrados ${vencimientos.length} vencimientos próximos`);
+      console.log(`📧 Encontrados ${vencimientos.length} vencimientos próximos`);
 
-    let enviados = 0;
-    let errores = 0;
+      let enviados = 0;
+      let errores = 0;
 
-    for (const vencimiento of vencimientos) {
-      try {
-        if (vencimiento.email_usuario && sendVencimientoEmail) {
-          await sendVencimientoEmail(
-            {
-              titulo: vencimiento.titulo,
-              descripcion: vencimiento.descripcion,
-              fecha_vencimiento: vencimiento.fecha_vencimiento,
-              numero_expediente: vencimiento.numero_expediente,
-              caratula: vencimiento.caratula,
-              tipo: vencimiento.tipo,
-              urgente: vencimiento.urgente
-            },
-            vencimiento.email_usuario
-          );
+      for (const vencimiento of vencimientos) {
+        try {
+          if (vencimiento.email_usuario && sendVencimientoEmail) {
+            await sendVencimientoEmail(
+              {
+                titulo: vencimiento.titulo,
+                descripcion: vencimiento.descripcion,
+                fecha_vencimiento: vencimiento.fecha_vencimiento,
+                numero_expediente: vencimiento.numero_expediente,
+                caratula: vencimiento.caratula,
+                tipo: vencimiento.tipo,
+                urgente: vencimiento.urgente
+              },
+              vencimiento.email_usuario
+            );
 
-          enviados++;
-          console.log(`✅ Correo enviado a ${vencimiento.email_usuario} para vencimiento ${vencimiento.id}`);
+            enviados++;
+            console.log(`✅ Correo enviado a ${vencimiento.email_usuario} para vencimiento ${vencimiento.id}`);
+          }
+        } catch (error) {
+          errores++;
+          console.error(`❌ Error al enviar correo para vencimiento ${vencimiento.id}:`, error.message);
         }
-      } catch (error) {
-        errores++;
-        console.error(`❌ Error al enviar correo para vencimiento ${vencimiento.id}:`, error.message);
       }
+
+      console.log(`📧 Job completado: ${enviados} enviados, ${errores} errores`);
+      return;
     }
 
-    console.log(`📧 Job completado: ${enviados} enviados, ${errores} errores`);
+    // Nuevo método: reporte diario combinado
+    const datos = await obtenerDatosDiaSiguiente();
+    
+    if (datos.estadisticas.total_vencimientos === 0 && 
+        datos.estadisticas.total_audiencias === 0 && 
+        datos.estadisticas.total_citas === 0) {
+      console.log('📧 No hay actividades programadas para el día siguiente');
+      return;
+    }
+
+    console.log(`📧 Actividades del día siguiente: ${datos.estadisticas.total_vencimientos} vencimientos, ${datos.estadisticas.total_audiencias} audiencias, ${datos.estadisticas.total_citas} citas`);
+
+    // Obtener destinatarios configurados
+    const schedule = getEmailSchedule();
+    const destinatariosConfig = schedule.vencimientos?.destinatarios || [];
+    
+    let emailsDestinatarios = [];
+    
+    if (destinatariosConfig.length > 0) {
+      // Si hay destinatarios configurados, obtener sus emails
+      const userIds = destinatariosConfig.filter(d => typeof d === 'number' || /^\d+$/.test(String(d)));
+      const emailsDirectos = destinatariosConfig.filter(d => typeof d === 'string' && d.includes('@'));
+      
+      if (userIds.length > 0) {
+        const [usuarios] = await pool.query(
+          `SELECT email FROM usuarios WHERE id IN (?) AND activo = TRUE AND email IS NOT NULL`,
+          [userIds]
+        );
+        emailsDestinatarios.push(...usuarios.map(u => u.email));
+      }
+      
+      emailsDestinatarios.push(...emailsDirectos);
+    } else {
+      // Si no hay destinatarios configurados, usar todos los usuarios activos con email
+      const [usuarios] = await pool.query(
+        `SELECT email FROM usuarios 
+         WHERE activo = TRUE 
+         AND email IS NOT NULL
+         AND rol IN ('abogado', 'secretaria')`
+      );
+      emailsDestinatarios = usuarios.map(u => u.email);
+    }
+
+    if (emailsDestinatarios.length === 0) {
+      console.log('⚠️ No hay destinatarios configurados para el reporte diario');
+      return;
+    }
+
+    // Eliminar duplicados
+    emailsDestinatarios = [...new Set(emailsDestinatarios)];
+
+    // Generar PDF
+    const pdfBuffer = await generarPDFReporteDiario(datos);
+
+    // Enviar correo
+    const resultados = await sendReporteDiarioEmail(datos, emailsDestinatarios, pdfBuffer);
+
+    const exitosos = resultados.filter(r => r.success).length;
+    const fallidos = resultados.filter(r => !r.success);
+
+    console.log(`📧 Reporte diario enviado: ${exitosos} exitosos, ${fallidos.length} fallidos`);
+    if (fallidos.length > 0) {
+      fallidos.forEach(f => {
+        console.error(`❌ Error al enviar a ${f.email}:`, f.error);
+      });
+    }
   } catch (error) {
-    console.error('❌ Error en job de vencimientos:', error);
+    console.error('❌ Error en job de reporte diario:', error);
   }
 };
 

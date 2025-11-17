@@ -314,10 +314,131 @@ const sendExpedientesSinMovimientoEmail = async (datos, destinatario, pdfBuffer)
   });
 };
 
+/**
+ * Envía un correo con reporte diario (vencimientos, audiencias, citas del día siguiente)
+ * @param {Object} datos - Datos del reporte diario
+ * @param {string|string[]} destinatarios - Email(s) del destinatario(s)
+ * @param {Buffer} pdfBuffer - Buffer del PDF
+ */
+const sendReporteDiarioEmail = async (datos, destinatarios, pdfBuffer) => {
+  // Normalizar a array
+  const emails = Array.isArray(destinatarios) ? destinatarios : [destinatarios];
+  
+  const fechaReporte = new Date(datos.fecha);
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #0087b4; color: white; padding: 20px; text-align: center; }
+        .content { background-color: #f9f9f9; padding: 20px; }
+        .alert { background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .info-row { margin: 10px 0; }
+        .label { font-weight: bold; color: #555; }
+        .section { margin: 20px 0; padding: 15px; background-color: white; border-left: 4px solid #0087b4; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📅 Reporte Diario - Día Laboral Posterior</h1>
+        </div>
+        <div class="content">
+          <div class="alert">
+            <h2 style="margin-top: 0;">Información para el ${fechaReporte.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
+            <p><strong>Vencimientos:</strong> ${datos.estadisticas.total_vencimientos}</p>
+            <p><strong>Audiencias:</strong> ${datos.estadisticas.total_audiencias}</p>
+            <p><strong>Citas/Reuniones:</strong> ${datos.estadisticas.total_citas}</p>
+          </div>
+          
+          ${datos.vencimientos.length > 0 ? `
+          <div class="section">
+            <h3>⚠️ Vencimientos</h3>
+            <ul>
+              ${datos.vencimientos.map(v => `
+                <li>
+                  <strong>${v.titulo}</strong><br>
+                  Expediente: ${v.numero_expediente || 'N/A'} | ${v.urgente ? '<span style="color: red;">URGENTE</span>' : ''}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          ` : ''}
+          
+          ${datos.audiencias.length > 0 ? `
+          <div class="section">
+            <h3>⚖️ Audiencias</h3>
+            <ul>
+              ${datos.audiencias.map(a => `
+                <li>
+                  <strong>${a.tipo}</strong> - ${new Date(a.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}<br>
+                  Expediente: ${a.numero_expediente || 'N/A'} | Sala: ${a.sala || 'N/A'}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          ` : ''}
+          
+          ${datos.citas.length > 0 ? `
+          <div class="section">
+            <h3>📋 Citas y Reuniones</h3>
+            <ul>
+              ${datos.citas.map(c => `
+                <li>
+                  <strong>${c.titulo}</strong> - ${new Date(c.fecha_hora).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}<br>
+                  Tipo: ${c.tipo} ${c.urgente ? '| <span style="color: red;">URGENTE</span>' : ''}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+          ` : ''}
+          
+          <p style="margin-top: 20px;">
+            <strong>Importante:</strong> Revise el archivo PDF adjunto para ver el detalle completo de todas las actividades programadas.
+          </p>
+        </div>
+        <div class="footer">
+          <p>Este es un correo automático del Sistema de Gestión del Estudio Jurídico.</p>
+          <p>Se envía diariamente para mantener informado sobre las actividades del día siguiente.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const attachments = pdfBuffer ? [{
+    filename: `reporte_diario_${datos.fecha}_${Date.now()}.pdf`,
+    content: pdfBuffer
+  }] : [];
+
+  // Enviar a todos los destinatarios
+  const resultados = [];
+  for (const email of emails) {
+    try {
+      const resultado = await sendEmail({
+        to: email,
+        subject: `📅 Reporte Diario: ${fechaReporte.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })} - ${datos.estadisticas.total_vencimientos} vencimientos, ${datos.estadisticas.total_audiencias} audiencias, ${datos.estadisticas.total_citas} citas`,
+        html: html,
+        attachments: attachments
+      });
+      resultados.push({ email, success: true, messageId: resultado.messageId });
+    } catch (error) {
+      resultados.push({ email, success: false, error: error.message });
+    }
+  }
+
+  return resultados;
+};
+
 module.exports = {
   sendEmail,
   sendVencimientoEmail,
   sendReporteEmail,
-  sendExpedientesSinMovimientoEmail
+  sendExpedientesSinMovimientoEmail,
+  sendReporteDiarioEmail
 };
 
