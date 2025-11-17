@@ -16,6 +16,11 @@ const documentosRoutes = require('./routes/documentos');
 const plantillasRoutes = require('./routes/plantillas');
 const agendaRoutes = require('./routes/agenda');
 const usuariosRoutes = require('./routes/usuarios');
+const reportesRoutes = require('./routes/reportes');
+const configRoutes = require('./routes/config');
+
+// Jobs
+const { iniciarJobVencimientos } = require('./jobs/vencimientosEmail');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -30,6 +35,9 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(logger);
+
+// Servir archivos estáticos de uploads
+app.use('/uploads', express.static('uploads'));
 
 // Rutas públicas
 app.get('/health', (req, res) => {
@@ -49,6 +57,8 @@ app.use('/api/documentos', documentosRoutes);
 app.use('/api/plantillas', plantillasRoutes);
 app.use('/api/agenda', agendaRoutes);
 app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/reportes', reportesRoutes);
+app.use('/api/config', configRoutes);
 
 // Manejo de errores
 app.use(errorHandler);
@@ -62,6 +72,15 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📚 API disponible en http://localhost:${PORT}/api`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  
+  // Iniciar jobs automáticos (con manejo de errores para no bloquear el servidor)
+  try {
+    iniciarJobVencimientos();
+    console.log(`📧 Jobs automáticos iniciados`);
+  } catch (error) {
+    console.error('⚠️ Error al iniciar jobs automáticos:', error.message);
+    console.log('⚠️ El servidor continuará funcionando sin los jobs automáticos');
+  }
 });
 
 module.exports = app;

@@ -1,0 +1,10 @@
+{
+  "vencimientos": {
+    "hora": "08:00"
+  },
+  "expedientes_inactivos": {
+    "hora": "08:30",
+    "dias": [1, 16]
+  }
+}
+
