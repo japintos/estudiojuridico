@@ -26,7 +26,6 @@ export default function RichTextEditor({
         [{ 'align': [] }],
         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
         [{ 'indent': '-1'}, { 'indent': '+1' }],
-        [{ 'line-height': ['1.0', '1.5', '2.0', '2.5'] }],
         ['blockquote', 'code-block'],
         ['link'],
         ['clean']
@@ -43,7 +42,6 @@ export default function RichTextEditor({
     'color', 'background',
     'align',
     'list', 'bullet', 'indent',
-    'line-height',
     'blockquote', 'code-block',
     'link'
   ]

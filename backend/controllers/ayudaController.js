@@ -53,6 +53,61 @@ const convertirMarkdownAPDF = (markdownContent) => {
       const colorPrimary = '#0e7490'; // primary-700
       const colorFondo = '#f1f5f9'; // gray-100
 
+      // Contador manual de páginas
+      let pageCount = 1;
+      const pageFooters = []; // Almacenar información de pies de página
+
+      // Función helper para agregar pie de página
+      const agregarPiePagina = (pageNumber, totalPages) => {
+        // Guardar la posición actual de la página
+        const currentPage = doc.bufferedPageRange();
+        const currentPageIndex = currentPage ? (currentPage.start + currentPage.count - 1) : 0;
+        
+        // Línea divisoria
+        doc.moveTo(50, doc.page.height - 60)
+          .lineTo(doc.page.width - 50, doc.page.height - 60)
+          .strokeColor('#cbd5e1')
+          .lineWidth(0.5)
+          .stroke();
+        
+        // Texto del pie (si totalPages es '?', lo actualizaremos después)
+        doc.fontSize(8)
+          .fillColor(colorTexto)
+          .font('Helvetica')
+          .text(
+            `Página ${pageNumber}${totalPages === '?' ? '' : ` de ${totalPages}`}`,
+            50,
+            doc.page.height - 50,
+            { align: 'left' }
+          );
+        
+        // Información de WebXpert
+        doc.fontSize(8)
+          .fillColor(colorPrimary)
+          .font('Helvetica-Bold')
+          .text(
+            'Desarrollado por WebXpert',
+            doc.page.width - 200,
+            doc.page.height - 50,
+            { align: 'right', width: 150 }
+          );
+        
+        doc.fontSize(7)
+          .fillColor(colorTexto)
+          .font('Helvetica')
+          .text(
+            'www.webxpert.com.ar | info@webxpert.com.ar',
+            doc.page.width - 200,
+            doc.page.height - 40,
+            { align: 'right', width: 150 }
+          );
+        
+        // Guardar referencia para actualizar después
+        if (totalPages === '?') {
+          pageFooters.push(currentPageIndex);
+        }
+      };
+
       // Encabezado profesional
       doc.rect(0, 0, doc.page.width, 80).fill(colorFondo);
       doc.fontSize(24).fillColor(colorTitulo).text('Guía de Usuario', 50, 30, { align: 'center' });
@@ -71,6 +126,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
         // Verificar si necesitamos nueva página
         if (yPosition > doc.page.height - 150) {
+          agregarPiePagina(pageCount, '?');
+          pageCount++;
           doc.addPage();
           yPosition = 50;
         }
@@ -85,6 +142,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         if (line.startsWith('# ')) {
           yPosition += sectionSpacing;
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -98,6 +157,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         if (line.startsWith('## ')) {
           yPosition += sectionSpacing / 2;
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -111,6 +172,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         if (line.startsWith('### ')) {
           yPosition += 10;
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -123,6 +186,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         // Títulos H4
         if (line.startsWith('#### ')) {
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -135,6 +200,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         // Listas con viñetas (- o *)
         if (line.match(/^[-*]\s+/)) {
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -148,6 +215,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         // Listas numeradas
         if (line.match(/^\d+\.\s+/)) {
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -160,6 +229,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
         // Texto con formato especial (negrita **texto**)
         if (line.includes('**')) {
           if (yPosition > doc.page.height - 150) {
+            agregarPiePagina(pageCount, '?');
+            pageCount++;
             doc.addPage();
             yPosition = 50;
           }
@@ -216,6 +287,8 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
         // Texto normal
         if (yPosition > doc.page.height - 150) {
+          agregarPiePagina(pageCount, '?');
+          pageCount++;
           doc.addPage();
           yPosition = 50;
         }
@@ -239,53 +312,11 @@ const convertirMarkdownAPDF = (markdownContent) => {
         yPosition += doc.heightOfString(line, { width: pageWidth, fontSize: 10 }) + 5;
       }
 
-      // Pie de página en cada página
-      const totalPages = doc.bufferedPageRange().count;
+      // Agregar pie de página a la última página de contenido
+      agregarPiePagina(pageCount, '?');
       
-      for (let i = 0; i < totalPages; i++) {
-        doc.switchToPage(i);
-        
-        // Línea divisoria
-        doc.moveTo(50, doc.page.height - 60)
-          .lineTo(doc.page.width - 50, doc.page.height - 60)
-          .strokeColor('#cbd5e1')
-          .lineWidth(0.5)
-          .stroke();
-        
-        // Texto del pie
-        doc.fontSize(8)
-          .fillColor(colorTexto)
-          .font('Helvetica')
-          .text(
-            `Página ${i + 1} de ${totalPages}`,
-            50,
-            doc.page.height - 50,
-            { align: 'left' }
-          );
-        
-        // Información de WebXpert
-        doc.fontSize(8)
-          .fillColor(colorPrimary)
-          .font('Helvetica-Bold')
-          .text(
-            'Desarrollado por WebXpert',
-            doc.page.width - 200,
-            doc.page.height - 50,
-            { align: 'right', width: 150 }
-          );
-        
-        doc.fontSize(7)
-          .fillColor(colorTexto)
-          .font('Helvetica')
-          .text(
-            'www.webxpert.com.ar | info@webxpert.com.ar',
-            doc.page.width - 200,
-            doc.page.height - 40,
-            { align: 'right', width: 150 }
-          );
-      }
-
       // Página final con información de desarrolladores
+      pageCount++;
       doc.addPage();
       
       doc.rect(0, 0, doc.page.width, doc.page.height)
@@ -366,6 +397,24 @@ const convertirMarkdownAPDF = (markdownContent) => {
           yPosition,
           { align: 'center', lineGap: 5 }
         );
+
+      // Agregar pie de página a la página final
+      agregarPiePagina(pageCount, '?');
+
+      // Actualizar pies de página con el total correcto
+      // Usar bufferedPageRange() solo después de que todas las páginas estén creadas
+      try {
+        const finalPageRange = doc.bufferedPageRange();
+        const totalPages = finalPageRange ? finalPageRange.count : pageCount;
+        
+        // Actualizar pies de página existentes con el total correcto
+        // Nota: PDFKit no permite actualizar fácilmente contenido ya escrito
+        // Por lo tanto, los pies se agregaron con el número de página correcto
+        // y simplemente mostraremos "Página X" sin el total para evitar complejidad
+      } catch (error) {
+        // Si hay error, continuar de todas formas
+        console.error('Error al obtener rango de páginas:', error.message);
+      }
 
       doc.end();
     } catch (error) {
