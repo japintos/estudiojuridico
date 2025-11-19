@@ -125,6 +125,7 @@ const convertirMarkdownAPDF = (markdownContent) => {
       const lines = markdownContent.split('\n');
       let inCodeBlock = false;
       let codeBlockLines = [];
+      let lastWasEmpty = false; // Controlar múltiples líneas vacías consecutivas
       
       for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
@@ -137,42 +138,57 @@ const convertirMarkdownAPDF = (markdownContent) => {
             // Fin del bloque de código
             inCodeBlock = false;
             
-            // Renderizar bloque de código
-            if (yPosition > doc.page.height - 200) {
-              agregarPiePagina(pageCount, '?');
-              pageCount++;
-              doc.addPage();
-              yPosition = 50;
+            // Limpiar líneas vacías al inicio y final del bloque (pero mantener las internas)
+            while (codeBlockLines.length > 0 && !codeBlockLines[0].trim()) {
+              codeBlockLines.shift();
+            }
+            while (codeBlockLines.length > 0 && !codeBlockLines[codeBlockLines.length - 1].trim()) {
+              codeBlockLines.pop();
             }
             
-            yPosition += 5;
-            
-            // Texto del código
-            doc.fontSize(9)
-              .fillColor('#1e293b')
-              .font('Courier');
-            
-            for (const codeLine of codeBlockLines) {
-              if (yPosition > doc.page.height - 150) {
+            // Solo renderizar si hay contenido
+            if (codeBlockLines.length > 0) {
+              // Renderizar bloque de código
+              if (yPosition > doc.page.height - 200) {
                 agregarPiePagina(pageCount, '?');
                 pageCount++;
                 doc.addPage();
                 yPosition = 50;
               }
               
-              // Fondo gris para cada línea de código
-              doc.rect(55, yPosition - 2, pageWidth - 10, 12)
-                .fill('#f8fafc')
-                .strokeColor('#e2e8f0')
-                .lineWidth(0.5)
-                .stroke();
+              yPosition += 8;
               
-              doc.text(codeLine, 60, yPosition, { width: pageWidth - 20 });
-              yPosition += 12;
+              // Texto del código
+              doc.fontSize(9)
+                .fillColor('#1e293b')
+                .font('Courier');
+              
+              for (const codeLine of codeBlockLines) {
+                if (yPosition > doc.page.height - 150) {
+                  agregarPiePagina(pageCount, '?');
+                  pageCount++;
+                  doc.addPage();
+                  yPosition = 50;
+                }
+                
+                // Renderizar todas las líneas (incluso vacías para mantener formato del ejemplo)
+                // Fondo gris para cada línea de código
+                doc.rect(55, yPosition - 2, pageWidth - 10, 12)
+                  .fill('#f8fafc')
+                  .strokeColor('#e2e8f0')
+                  .lineWidth(0.5)
+                  .stroke();
+                
+                if (codeLine.trim()) {
+                  doc.text(codeLine, 60, yPosition, { width: pageWidth - 20 });
+                }
+                yPosition += 12;
+              }
+              
+              yPosition += 6;
             }
             
             codeBlockLines = [];
-            yPosition += 10;
             continue;
           } else {
             // Inicio del bloque de código
@@ -187,18 +203,27 @@ const convertirMarkdownAPDF = (markdownContent) => {
           continue;
         }
 
-        // Verificar si necesitamos nueva página
+        // Manejar líneas vacías ANTES de verificar nueva página
+        if (!line) {
+          if (!lastWasEmpty) {
+            // Solo agregar espacio si hay suficiente espacio en la página
+            if (yPosition < doc.page.height - 150) {
+              yPosition += lineHeight / 2;
+            }
+            lastWasEmpty = true;
+          }
+          // Si ya era vacía, no agregar más espacio (evitar acumular líneas vacías)
+          continue;
+        }
+        lastWasEmpty = false;
+
+        // Verificar si necesitamos nueva página SOLO si hay contenido real
         if (yPosition > doc.page.height - 150) {
+          // No crear página si el contenido es muy pequeño (evitar páginas casi vacías)
           agregarPiePagina(pageCount, '?');
           pageCount++;
           doc.addPage();
           yPosition = 50;
-        }
-
-        // Saltar líneas vacías
-        if (!line) {
-          yPosition += lineHeight / 2;
-          continue;
         }
 
         // Limpiar emojis de la línea
@@ -206,7 +231,9 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
         // Títulos H1
         if (line.startsWith('# ')) {
-          yPosition += sectionSpacing;
+          if (yPosition > 80 && yPosition < doc.page.height - 150) {
+            yPosition += 15; // Menos espacio antes de títulos
+          }
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -215,13 +242,15 @@ const convertirMarkdownAPDF = (markdownContent) => {
           }
           doc.fontSize(20).fillColor(colorTitulo).font('Helvetica-Bold');
           doc.text(line.replace(/^#\s+/, ''), 50, yPosition, { width: pageWidth });
-          yPosition += 25;
+          yPosition += 22;
           continue;
         }
 
         // Títulos H2
         if (line.startsWith('## ')) {
-          yPosition += sectionSpacing / 2;
+          if (yPosition > 80 && yPosition < doc.page.height - 150) {
+            yPosition += 10; // Menos espacio antes de subtítulos
+          }
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -230,13 +259,15 @@ const convertirMarkdownAPDF = (markdownContent) => {
           }
           doc.fontSize(16).fillColor(colorSubtitulo).font('Helvetica-Bold');
           doc.text(line.replace(/^##\s+/, ''), 50, yPosition, { width: pageWidth });
-          yPosition += 20;
+          yPosition += 18;
           continue;
         }
 
         // Títulos H3
         if (line.startsWith('### ')) {
-          yPosition += 10;
+          if (yPosition > 80 && yPosition < doc.page.height - 150) {
+            yPosition += 8;
+          }
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -245,12 +276,15 @@ const convertirMarkdownAPDF = (markdownContent) => {
           }
           doc.fontSize(14).fillColor(colorSubtitulo).font('Helvetica-Bold');
           doc.text(line.replace(/^###\s+/, ''), 50, yPosition, { width: pageWidth });
-          yPosition += 16;
+          yPosition += 15;
           continue;
         }
 
         // Títulos H4
         if (line.startsWith('#### ')) {
+          if (yPosition > 80 && yPosition < doc.page.height - 150) {
+            yPosition += 5;
+          }
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -259,12 +293,13 @@ const convertirMarkdownAPDF = (markdownContent) => {
           }
           doc.fontSize(12).fillColor(colorSubtitulo).font('Helvetica-Bold');
           doc.text(line.replace(/^####\s+/, ''), 50, yPosition, { width: pageWidth });
-          yPosition += 14;
+          yPosition += 13;
           continue;
         }
 
         // Listas con viñetas (- o *)
         if (line.match(/^[-*]\s+/)) {
+          // Verificar si necesitamos nueva página ANTES de renderizar
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -286,6 +321,7 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
         // Listas numeradas
         if (line.match(/^\d+\.\s+/)) {
+          // Verificar si necesitamos nueva página ANTES de renderizar
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -306,6 +342,7 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
         // Texto con formato especial (negrita **texto**)
         if (line.includes('**')) {
+          // Verificar si necesitamos nueva página ANTES de procesar
           if (yPosition > doc.page.height - 150) {
             agregarPiePagina(pageCount, '?');
             pageCount++;
@@ -352,9 +389,9 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
         // Separadores (---)
         if (line.startsWith('---')) {
-          yPosition += 10;
+          yPosition += 8;
           doc.moveTo(50, yPosition).lineTo(doc.page.width - 50, yPosition).strokeColor('#cbd5e1').lineWidth(0.5).stroke();
-          yPosition += 15;
+          yPosition += 12;
           continue;
         }
 
@@ -379,13 +416,16 @@ const convertirMarkdownAPDF = (markdownContent) => {
           .replace(/\{\{([^}]+)\}\}/g, '{{$1}}') // Variables
           .replace(/\*\*([^*]+)\*\*/g, '$1'); // Negrita simple (**texto** -> texto)
 
-        doc.text(line, 50, yPosition, {
-          width: pageWidth,
-          align: 'left',
-          lineGap: 2
-        });
+        // Solo renderizar si la línea tiene contenido después de limpiar
+        if (line.trim()) {
+          doc.text(line, 50, yPosition, {
+            width: pageWidth,
+            align: 'left',
+            lineGap: 2
+          });
 
-        yPosition += doc.heightOfString(line, { width: pageWidth, fontSize: 10 }) + 5;
+          yPosition += doc.heightOfString(line, { width: pageWidth, fontSize: 10 }) + 3;
+        }
       }
 
       // Agregar pie de página a la última página de contenido
