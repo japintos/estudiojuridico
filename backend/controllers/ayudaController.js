@@ -55,13 +55,11 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
       // Contador manual de páginas
       let pageCount = 1;
-      const pageFooters = []; // Almacenar información de pies de página
+      let totalPages = 0; // Se calculará al final
 
       // Función helper para agregar pie de página
-      const agregarPiePagina = (pageNumber, totalPages) => {
-        // Guardar la posición actual de la página
-        const currentPage = doc.bufferedPageRange();
-        const currentPageIndex = currentPage ? (currentPage.start + currentPage.count - 1) : 0;
+      const agregarPiePagina = (pageNumber, total) => {
+        const totalFinal = total === '?' ? totalPages || pageNumber : total;
         
         // Línea divisoria
         doc.moveTo(50, doc.page.height - 60)
@@ -70,12 +68,12 @@ const convertirMarkdownAPDF = (markdownContent) => {
           .lineWidth(0.5)
           .stroke();
         
-        // Texto del pie (si totalPages es '?', lo actualizaremos después)
+        // Texto del pie
         doc.fontSize(8)
           .fillColor(colorTexto)
           .font('Helvetica')
           .text(
-            `Página ${pageNumber}${totalPages === '?' ? '' : ` de ${totalPages}`}`,
+            `Página ${pageNumber}${totalFinal === '?' ? '' : ` de ${totalFinal}`}`,
             50,
             doc.page.height - 50,
             { align: 'left' }
@@ -101,11 +99,16 @@ const convertirMarkdownAPDF = (markdownContent) => {
             doc.page.height - 40,
             { align: 'right', width: 150 }
           );
-        
-        // Guardar referencia para actualizar después
-        if (totalPages === '?') {
-          pageFooters.push(currentPageIndex);
-        }
+      };
+
+      // Función para limpiar emojis y caracteres especiales
+      const limpiarEmojis = (text) => {
+        return text
+          .replace(/[🎯🚀📋✏️📍🛠️💡🔄🆘📞👥🎨🔍📊⚙️]/g, '') // Emojis comunes
+          .replace(/✅/g, '✓')
+          .replace(/❌/g, '✗')
+          .replace(/⚠️/g, '⚠')
+          .trim();
       };
 
       // Encabezado profesional
@@ -120,9 +123,69 @@ const convertirMarkdownAPDF = (markdownContent) => {
 
       // Parser básico de Markdown
       const lines = markdownContent.split('\n');
+      let inCodeBlock = false;
+      let codeBlockLines = [];
       
       for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trim();
+        let line = lines[i];
+        const originalLine = line;
+        line = line.trim();
+
+        // Detectar bloques de código (```)
+        if (line.startsWith('```')) {
+          if (inCodeBlock) {
+            // Fin del bloque de código
+            inCodeBlock = false;
+            
+            // Renderizar bloque de código
+            if (yPosition > doc.page.height - 200) {
+              agregarPiePagina(pageCount, '?');
+              pageCount++;
+              doc.addPage();
+              yPosition = 50;
+            }
+            
+            yPosition += 5;
+            
+            // Texto del código
+            doc.fontSize(9)
+              .fillColor('#1e293b')
+              .font('Courier');
+            
+            for (const codeLine of codeBlockLines) {
+              if (yPosition > doc.page.height - 150) {
+                agregarPiePagina(pageCount, '?');
+                pageCount++;
+                doc.addPage();
+                yPosition = 50;
+              }
+              
+              // Fondo gris para cada línea de código
+              doc.rect(55, yPosition - 2, pageWidth - 10, 12)
+                .fill('#f8fafc')
+                .strokeColor('#e2e8f0')
+                .lineWidth(0.5)
+                .stroke();
+              
+              doc.text(codeLine, 60, yPosition, { width: pageWidth - 20 });
+              yPosition += 12;
+            }
+            
+            codeBlockLines = [];
+            yPosition += 10;
+            continue;
+          } else {
+            // Inicio del bloque de código
+            inCodeBlock = true;
+            continue;
+          }
+        }
+
+        // Si estamos dentro de un bloque de código, acumular líneas
+        if (inCodeBlock) {
+          codeBlockLines.push(limpiarEmojis(line));
+          continue;
+        }
 
         // Verificar si necesitamos nueva página
         if (yPosition > doc.page.height - 150) {
@@ -137,6 +200,9 @@ const convertirMarkdownAPDF = (markdownContent) => {
           yPosition += lineHeight / 2;
           continue;
         }
+
+        // Limpiar emojis de la línea
+        line = limpiarEmojis(line);
 
         // Títulos H1
         if (line.startsWith('# ')) {
@@ -205,9 +271,15 @@ const convertirMarkdownAPDF = (markdownContent) => {
             doc.addPage();
             yPosition = 50;
           }
+          
+          // Detectar nivel de indentación
+          const match = originalLine.match(/^(\s*)[-*]\s+(.*)/);
+          const indentLevel = match ? match[1].length : 0;
+          const indentSize = Math.floor(indentLevel / 2) * 15; // 15px por cada nivel
+          
           doc.fontSize(10).fillColor(colorTexto).font('Helvetica');
           const listItem = line.replace(/^[-*]\s+/, '• ');
-          doc.text(listItem, 60, yPosition, { width: pageWidth - 20, indent: 10 });
+          doc.text(listItem, 60 + indentSize, yPosition, { width: pageWidth - 20 - indentSize });
           yPosition += lineHeight;
           continue;
         }
@@ -220,8 +292,14 @@ const convertirMarkdownAPDF = (markdownContent) => {
             doc.addPage();
             yPosition = 50;
           }
+          
+          // Detectar nivel de indentación
+          const match = originalLine.match(/^(\s*)(\d+\.\s+)(.*)/);
+          const indentLevel = match ? match[1].length : 0;
+          const indentSize = Math.floor(indentLevel / 3) * 15; // 15px por cada nivel
+          
           doc.fontSize(10).fillColor(colorTexto).font('Helvetica');
-          doc.text(line, 60, yPosition, { width: pageWidth - 20, indent: 10 });
+          doc.text(line, 60 + indentSize, yPosition, { width: pageWidth - 20 - indentSize });
           yPosition += lineHeight;
           continue;
         }
@@ -299,9 +377,7 @@ const convertirMarkdownAPDF = (markdownContent) => {
         line = line
           .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Links [text](url) -> text
           .replace(/\{\{([^}]+)\}\}/g, '{{$1}}') // Variables
-          .replace(/✅/g, '✓')
-          .replace(/❌/g, '✗')
-          .replace(/⚠️/g, '⚠');
+          .replace(/\*\*([^*]+)\*\*/g, '$1'); // Negrita simple (**texto** -> texto)
 
         doc.text(line, 50, yPosition, {
           width: pageWidth,
@@ -398,23 +474,16 @@ const convertirMarkdownAPDF = (markdownContent) => {
           { align: 'center', lineGap: 5 }
         );
 
-      // Agregar pie de página a la página final
-      agregarPiePagina(pageCount, '?');
-
-      // Actualizar pies de página con el total correcto
-      // Usar bufferedPageRange() solo después de que todas las páginas estén creadas
+      // Obtener total de páginas antes de agregar el pie de la última
       try {
         const finalPageRange = doc.bufferedPageRange();
-        const totalPages = finalPageRange ? finalPageRange.count : pageCount;
-        
-        // Actualizar pies de página existentes con el total correcto
-        // Nota: PDFKit no permite actualizar fácilmente contenido ya escrito
-        // Por lo tanto, los pies se agregaron con el número de página correcto
-        // y simplemente mostraremos "Página X" sin el total para evitar complejidad
+        totalPages = finalPageRange ? finalPageRange.count : pageCount;
       } catch (error) {
-        // Si hay error, continuar de todas formas
-        console.error('Error al obtener rango de páginas:', error.message);
+        totalPages = pageCount;
       }
+
+      // Agregar pie de página a la página final
+      agregarPiePagina(pageCount, totalPages);
 
       doc.end();
     } catch (error) {
