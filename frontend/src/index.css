@@ -74,3 +74,74 @@
   }
 }
 
+/* Estilos personalizados para React Quill */
+.rich-text-editor-wrapper .ql-container {
+  @apply border-gray-300 rounded-b-lg;
+  min-height: 300px;
+  font-size: 14px;
+}
+
+.rich-text-editor-wrapper .ql-editor {
+  min-height: 300px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rich-text-editor-wrapper .ql-toolbar {
+  @apply border-gray-300 rounded-t-lg bg-gray-50;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.rich-text-editor-wrapper .ql-toolbar .ql-stroke {
+  @apply stroke-gray-700;
+}
+
+.rich-text-editor-wrapper .ql-toolbar .ql-fill {
+  @apply fill-gray-700;
+}
+
+.rich-text-editor-wrapper .ql-toolbar button:hover,
+.rich-text-editor-wrapper .ql-toolbar button.ql-active {
+  @apply bg-gray-200;
+}
+
+.rich-text-editor-wrapper .ql-toolbar .ql-picker-label {
+  @apply text-gray-700;
+}
+
+.rich-text-editor-wrapper .ql-toolbar .ql-picker-options {
+  @apply bg-white border-gray-300 rounded-lg shadow-lg;
+}
+
+.rich-text-editor-wrapper .ql-snow .ql-picker {
+  @apply text-gray-700;
+}
+
+.rich-text-editor-wrapper .ql-snow .ql-picker.ql-expanded .ql-picker-label {
+  @apply border-gray-300;
+}
+
+.rich-text-editor-wrapper .ql-editor.ql-blank::before {
+  @apply text-gray-400 italic;
+}
+
+/* Ajustes para mejorar la legibilidad */
+.rich-text-editor-wrapper .ql-editor p,
+.rich-text-editor-wrapper .ql-editor ol,
+.rich-text-editor-wrapper .ql-editor ul,
+.rich-text-editor-wrapper .ql-editor pre,
+.rich-text-editor-wrapper .ql-editor blockquote {
+  margin-bottom: 0.75rem;
+}
+
+.rich-text-editor-wrapper .ql-editor h1,
+.rich-text-editor-wrapper .ql-editor h2,
+.rich-text-editor-wrapper .ql-editor h3,
+.rich-text-editor-wrapper .ql-editor h4,
+.rich-text-editor-wrapper .ql-editor h5,
+.rich-text-editor-wrapper .ql-editor h6 {
+  @apply font-semibold text-gray-900;
+  margin-bottom: 0.75rem;
+}
+

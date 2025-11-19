@@ -20,6 +20,7 @@ const agendaRoutes = require('./routes/agenda');
 const usuariosRoutes = require('./routes/usuarios');
 const reportesRoutes = require('./routes/reportes');
 const configRoutes = require('./routes/config');
+const ayudaRoutes = require('./routes/ayuda');
 
 // Jobs
 const { iniciarJobVencimientos } = require('./jobs/vencimientosEmail');
@@ -61,6 +62,7 @@ app.use('/api/agenda', agendaRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/ayuda', ayudaRoutes);
 
 // Servir frontend compilado en producción
 if (process.env.NODE_ENV === 'production') {

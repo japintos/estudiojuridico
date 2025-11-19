@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FileEdit, Plus, Eye, X, FileText } from 'lucide-react'
 import api from '../../services/api'
 import { toast } from 'react-toastify'
+import RichTextEditor from '../../components/RichTextEditor'
 
 interface Plantilla {
   id: number
@@ -69,8 +70,24 @@ export default function Plantillas() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validar que el contenido no esté vacío (Quill puede generar <p><br></p> que es HTML vacío)
+    const contenidoLimpio = formData.contenido.trim()
+    const contenidoValido = contenidoLimpio && 
+                            contenidoLimpio !== '<p><br></p>' && 
+                            contenidoLimpio !== '<p></p>' &&
+                            contenidoLimpio.length > 0
+    
+    if (!contenidoValido) {
+      toast.error('El contenido de la plantilla no puede estar vacío')
+      return
+    }
+
     try {
-      await api.post('/plantillas', formData)
+      await api.post('/plantillas', {
+        ...formData,
+        contenido: contenidoLimpio
+      })
       toast.success('Plantilla creada exitosamente')
       setShowModal(false)
       setFormData({
@@ -210,7 +227,7 @@ export default function Plantillas() {
       {/* Modal crear plantilla */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[95vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900">Nueva Plantilla</h2>
               <button
@@ -290,16 +307,18 @@ export default function Plantillas() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contenido * (Use {'{{'}variable{'}}'} para variables)
                 </label>
-                <textarea
+                <RichTextEditor
                   value={formData.contenido}
-                  onChange={(e) => setFormData({ ...formData, contenido: e.target.value })}
-                  required
-                  className="input-field font-mono text-sm"
-                  rows={10}
-                  placeholder="Ejemplo: Expediente {'{{'}numero_expediente{'}}'} - {'{{'}caratula{'}}'}..."
+                  onChange={(value) => setFormData({ ...formData, contenido: value })}
+                  placeholder="Ejemplo: Expediente {{numero_expediente}} - {{caratula}}..."
+                  className="mb-2"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Variables disponibles: {'{{'}numero_expediente{'}}'}, {'{{'}caratula{'}}'}, {'{{'}juzgado{'}}'}, {'{{'}nombre_cliente{'}}'}, {'{{'}dni_cliente{'}}'}, {'{{'}nombre_abogado{'}}'}, {'{{'}fecha{'}}'}
+                <p className="text-xs text-gray-500 mt-2">
+                  <strong>Variables disponibles:</strong> {'{{'}numero_expediente{'}}'}, {'{{'}caratula{'}}'}, {'{{'}juzgado{'}}'}, {'{{'}nombre_cliente{'}}'}, {'{{'}dni_cliente{'}}'}, {'{{'}nombre_abogado{'}}'}, {'{{'}fecha{'}}'}
+                  <br />
+                  <span className="text-gray-400 mt-1 block">
+                    Use las herramientas de la barra superior para formatear el texto: negrita, cursiva, tamaño de fuente, interlineado, sangría, etc.
+                  </span>
                 </p>
               </div>
 
@@ -314,6 +333,9 @@ export default function Plantillas() {
                 <button
                   type="submit"
                   className="btn-primary"
+                  disabled={!formData.nombre.trim() || !formData.contenido.trim() || 
+                            formData.contenido.trim() === '<p><br></p>' || 
+                            formData.contenido.trim() === '<p></p>'}
                 >
                   Crear Plantilla
                 </button>
@@ -344,9 +366,10 @@ export default function Plantillas() {
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-2">Contenido:</p>
-                <pre className="bg-gray-50 p-4 rounded-lg text-sm whitespace-pre-wrap font-mono">
-                  {selectedPlantilla.contenido}
-                </pre>
+                <div 
+                  className="bg-gray-50 p-4 rounded-lg text-sm prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: selectedPlantilla.contenido || '' }}
+                />
               </div>
             </div>
 

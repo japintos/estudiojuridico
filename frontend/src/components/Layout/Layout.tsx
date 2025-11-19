@@ -1,5 +1,8 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { useState, useMemo } from 'react'
+import api from '../../services/api'
+import { toast } from 'react-toastify'
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -11,14 +14,15 @@ import {
   LogOut,
   BarChart3,
   Shield,
-  UserCog
+  UserCog,
+  Download
 } from 'lucide-react'
 import logoSGJ from '../../img/logoSGJ.png'
-import { useMemo } from 'react'
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const [downloading, setDownloading] = useState(false)
   const adminEmails = useMemo(() => {
     const value = import.meta.env.VITE_ADMIN_EMAILS || import.meta.env.VITE_ADMIN_EMAIL || 'admin@estudiojuridico.com'
     return value
@@ -33,6 +37,30 @@ export default function Layout() {
   }
 
   const isAdminUser = user?.email ? adminEmails.includes(user.email.toLowerCase()) : false
+
+  const handleDownloadGuia = async () => {
+    setDownloading(true)
+    try {
+      const response = await api.get('/ayuda/guia-usuario', {
+        responseType: 'blob'
+      })
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `Guia_Usuario_Estudio_Juridico_${new Date().toISOString().split('T')[0]}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      
+      toast.success('Guía de usuario descargada exitosamente')
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Error al descargar la guía de usuario')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['abogado', 'secretaria', 'gestor', 'pasante'] },
@@ -100,6 +128,24 @@ export default function Layout() {
                 </NavLink>
               )
             })}
+            
+            {/* Separador para sección de ayuda */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="px-3 mb-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Ayuda y Soporte
+                </p>
+              </div>
+              <button
+                onClick={handleDownloadGuia}
+                disabled={downloading}
+                className="w-full group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Descargar guía de usuario en formato PDF"
+              >
+                <Download className={`mr-3 h-5 w-5 ${downloading ? 'animate-pulse' : ''}`} />
+                {downloading ? 'Descargando...' : 'Guía de Usuario'}
+              </button>
+            </div>
           </nav>
         </div>
 
